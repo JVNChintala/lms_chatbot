@@ -2,6 +2,7 @@ import os
 import json
 import google.generativeai as genai
 from .base_inference import BaseInference
+from model_config import ModelConfig
 
 class GeminiInference(BaseInference):
     """Google Gemini inference system"""
@@ -11,7 +12,7 @@ class GeminiInference(BaseInference):
         self.client = None
         if self.is_available():
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            self.model = genai.GenerativeModel(ModelConfig.GEMINI_MODEL)
     
     def is_available(self) -> bool:
         return bool(os.getenv('GEMINI_API_KEY'))

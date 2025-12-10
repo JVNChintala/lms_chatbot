@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 from .base_inference import BaseInference
+from model_config import ModelConfig
 
 class BedrockInference(BaseInference):
     """AWS Bedrock Claude 3 Sonnet inference system"""
@@ -9,7 +10,7 @@ class BedrockInference(BaseInference):
     def __init__(self):
         super().__init__()
         self.client = None
-        self.model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+        self.model_id = ModelConfig.BEDROCK_MODEL
         if self.is_available():
             self.client = boto3.client(
                 'bedrock-runtime',
@@ -23,7 +24,7 @@ class BedrockInference(BaseInference):
         """Call AWS Bedrock with Claude"""
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
+            "max_tokens": ModelConfig.MAX_TOKENS,
             "system": system_prompt,
             "messages": messages,
             "tools": tools
@@ -66,7 +67,7 @@ class BedrockInference(BaseInference):
         
         final_request = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
+            "max_tokens": ModelConfig.MAX_TOKENS,
             "messages": messages
         }
         

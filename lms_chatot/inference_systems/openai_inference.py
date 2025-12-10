@@ -2,6 +2,7 @@ import os
 import json
 from openai import OpenAI
 from .base_inference import BaseInference
+from model_config import ModelConfig
 
 class OpenAIInference(BaseInference):
     """OpenAI GPT-4 inference system"""
@@ -31,11 +32,11 @@ class OpenAIInference(BaseInference):
         openai_messages = [{"role": "system", "content": system_prompt}] + messages
         
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model=ModelConfig.OPENAI_MODEL,
             messages=openai_messages,
             tools=openai_tools,
             tool_choice="auto",
-            max_tokens=1000
+            max_tokens=ModelConfig.MAX_TOKENS
         )
         
         message = response.choices[0].message
@@ -65,9 +66,9 @@ class OpenAIInference(BaseInference):
         })
         
         final_response = self.client.chat.completions.create(
-            model="gpt-4",
+            model=ModelConfig.OPENAI_MODEL,
             messages=messages,
-            max_tokens=1000
+            max_tokens=ModelConfig.MAX_TOKENS
         )
         
         return final_response.choices[0].message.content
