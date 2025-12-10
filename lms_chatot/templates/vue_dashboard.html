@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas LMS - Vue Dashboard</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .role-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px; }
+        .logout-btn { background: white; color: #667eea; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
+        .container { display: flex; height: calc(100vh - 60px); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
+        .nav-section { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+        .nav-section ul { list-style: none; }
+        .nav-section li { padding: 12px; margin-bottom: 5px; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+        .nav-section li:hover { background: #f3f4f6; }
+        .nav-section li.active { background: #dbeafe; color: #2563eb; font-weight: bold; }
+        .conversations-section { flex: 1; padding: 20px; overflow-y: auto; }
+        .conversations-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .new-chat-btn { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .conversation-item { padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; border: 1px solid #e5e7eb; transition: all 0.2s; }
+        .conversation-item:hover { background: #f9fafb; }
+        .conversation-item.active { background: #dbeafe; border-color: #2563eb; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .dashboard-view { padding: 20px; overflow-y: auto; background: #f8fafc; }
+        .analytics-dashboard { margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; }
+        .dashboard-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .metric-card { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 10px; text-align: center; transition: all 0.3s; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
+        .metric-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.2); }
+        .metric-value { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .metric-label { font-size: 13px; opacity: 0.9; }
+        .metric-hint { font-size: 10px; opacity: 0.7; margin-top: 5px; }
+        .progress-section { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+        .progress-item { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 12px; }
+        .quick-actions { text-align: center; }
+        .action-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 0 5px; transition: all 0.3s; }
+        .action-btn:hover { background: rgba(255,255,255,0.3); }
+        .chat-container { background: white; height: 100%; display: flex; flex-direction: column; border-left: 1px solid #e5e7eb; }
+        .chat-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+        .chat-box { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { margin-bottom: 15px; display: flex; }
+        .message.user { justify-content: flex-end; }
+        .message-content { max-width: 70%; padding: 10px 15px; border-radius: 10px; }
+        .message.user .message-content { background: #2563eb; color: white; }
+        .message.assistant .message-content { background: #e5e7eb; color: #1f2937; }
+        .input-area { padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; }
+        .input-area input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; }
+        .input-area button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .loading { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 8px; height: 8px; background: #6b7280; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        .course-details { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 10px 0; }
+        .course-item { background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border-left: 4px solid #10b981; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .course-name { font-weight: 600; color: #1f2937; }
+        .course-stats { display: flex; gap: 15px; margin-top: 8px; font-size: 13px; color: #6b7280; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>Canvas LMS</h1>
+            <div class="user-info">
+                <span>{{ username }}</span>
+                <span class="role-badge">{{ roleText }}</span>
+                <button class="logout-btn" @click="logout">Logout</button>
+            </div>
+        </div>
+        <div class="container">
+            <div class="sidebar">
+                <div class="nav-section">
+                    <ul>
+                        <li @click="showDashboard" :class="{ active: currentView === 'dashboard' }">📊 Dashboard</li>
+                        <li>📚 Courses</li>
+                        <li>📅 Calendar</li>
+                        <li>📧 Inbox</li>
+                        <li @click="showChat" :class="{ active: currentView === 'chat' }">🤖 AI Assistant</li>
+                        <li>⚙️ Account</li>
+                    </ul>
+                </div>
+                <div class="conversations-section">
+                    <div class="conversations-header">
+                        <h3>💬 Conversations</h3>
+                        <button class="new-chat-btn" @click="newConversation">+ New</button>
+                    </div>
+                    <div v-for="conv in conversations" :key="conv.id" 
+                         class="conversation-item" 
+                         :class="{ active: conv.id === currentConversationId }"
+                         @click="loadConversation(conv.id)">
+                        <div class="conversation-title">{{ conv.title }}</div>
+                        <div class="conversation-date">{{ formatDate(conv.updated_at) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="main-content">
+                <div v-if="currentView === 'dashboard'" class="dashboard-view">
+                    <h2 style="margin-bottom: 20px; color: #1f2937;">📊 Dashboard Overview</h2>
+                    <div v-if="analytics" class="analytics-dashboard">
+                        <div class="dashboard-title">📊 Canvas Analytics Dashboard</div>
+                        <div class="metrics-grid">
+                            <div v-for="(value, key) in metricsData" :key="key" 
+                                 class="metric-card"
+                                 @click="handleMetricClick(key)"
+                                 :style="{ cursor: key === 'total_courses' ? 'pointer' : 'default' }">
+                                <div class="metric-value">{{ value }}</div>
+                                <div class="metric-label">{{ formatLabel(key) }}</div>
+                                <div v-if="key === 'total_courses'" class="metric-hint">Click for details</div>
+                            </div>
+                        </div>
+                        <div v-if="analytics.student_progress && analytics.student_progress.length > 0" class="progress-section">
+                            <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">🎓 Recent Student Progress</div>
+                            <div class="progress-grid">
+                                <div v-for="progress in analytics.student_progress.slice(0, 6)" :key="progress.student" class="progress-item">
+                                    <div style="font-weight: 600;">{{ progress.student }}</div>
+                                    <div style="opacity: 0.8;">{{ progress.course }}</div>
+                                    <div style="color: #4ade80; font-weight: 600;">{{ progress.progress }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="quick-actions">
+                            <div style="font-size: 14px; margin-bottom: 10px; opacity: 0.9;">Quick Actions</div>
+                            <button v-for="action in analytics.quick_actions" :key="action.action" 
+                                    class="action-btn" @click="quickAction(action.action)">
+                                {{ action.label }}
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="showCourseDetails && courseDetails" class="course-details">
+                        <div style="font-weight: 600; color: #1f2937; margin-bottom: 15px; font-size: 16px;">📚 Course Details</div>
+                        <div v-for="course in courseDetails" :key="course.id" class="course-item">
+                            <div class="course-name">{{ course.name }}</div>
+                            <div class="course-stats">
+                                <span>🎓 {{ course.students || 0 }} Students</span>
+                                <span>📖 {{ course.modules || 0 }} Modules</span>
+                                <span :style="{ color: course.state === 'available' ? '#10b981' : '#f59e0b', fontWeight: '500' }">
+                                    {{ course.state === 'available' ? 'Published' : 'Draft' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="currentView === 'chat'" class="chat-container">
+                    <div class="chat-header">
+                        <h2>🤖 Canvas AI Assistant</h2>
+                        <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Ask me anything about your courses and assignments</p>
+                    </div>
+                    <div class="chat-box" ref="chatBox">
+                        <div v-for="(message, index) in messages" :key="index" 
+                             class="message" :class="message.role">
+                            <div class="message-content" v-html="message.content"></div>
+                        </div>
+                        <div v-if="isLoading" class="message assistant">
+                            <div class="message-content loading">
+                                <span class="dot"></span><span class="dot"></span><span class="dot"></span> Thinking...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-area">
+                        <input v-model="userInput" @keypress.enter="sendMessage" placeholder="Type your message..." />
+                        <button @click="sendMessage" :disabled="isLoading">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    currentView: 'dashboard',
+                    username: localStorage.getItem('canvas_username') || '',
+                    userRole: localStorage.getItem('canvas_role') || '',
+                    canvasUserId: parseInt(localStorage.getItem('canvas_user_id')) || null,
+                    conversations: [],
+                    currentConversationId: null,
+                    messages: [],
+                    userInput: '',
+                    isLoading: false,
+                    sessionId: null,
+                    analytics: null,
+                    showCourseDetails: false,
+                    courseDetails: null
+                }
+            },
+            computed: {
+                roleText() {
+                    return this.userRole === 'student' ? 'Student' : 
+                           this.userRole === 'admin' ? 'Administrator' : 'Teacher';
+                },
+                metricsData() {
+                    if (!this.analytics) return {};
+                    const metrics = {};
+                    for (const [key, value] of Object.entries(this.analytics)) {
+                        if (typeof value === 'number' && 
+                            !['quick_actions', 'course_details', 'student_progress', 'user_distribution'].includes(key)) {
+                            metrics[key] = value;
+                        }
+                    }
+                    return metrics;
+                }
+            },
+            async mounted() {
+                if (!this.userRole || !this.username) {
+                    window.location.href = '/canvas-login';
+                    return;
+                }
+                await this.loadConversations();
+                await this.loadAnalytics();
+            },
+            methods: {
+                async loadAnalytics() {
+                    try {
+                        const response = await fetch(`/analytics?user_role=${this.userRole}&canvas_user_id=${this.canvasUserId}`);
+                        const data = await response.json();
+                        this.analytics = data.analytics;
+                    } catch (error) {
+                        console.error('Failed to load analytics:', error);
+                    }
+                },
+                async loadConversations() {
+                    try {
+                        const response = await fetch(`/conversations?canvas_user_id=${this.canvasUserId}`);
+                        const data = await response.json();
+                        this.conversations = data.conversations;
+                    } catch (error) {
+                        console.error('Failed to load conversations:', error);
+                    }
+                },
+                async newConversation() {
+                    try {
+                        const response = await fetch('/conversations', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ canvas_user_id: this.canvasUserId, title: 'New Chat' })
+                        });
+                        const data = await response.json();
+                        this.currentConversationId = data.conversation_id;
+                        this.messages = [];
+                        this.showCourseDetails = false;
+                        await this.loadConversations();
+                        this.showChat();
+                        // Auto-load analytics
+                        setTimeout(() => this.displayAnalyticsInChat(), 500);
+                    } catch (error) {
+                        console.error('Failed to create conversation:', error);
+                    }
+                },
+                async loadConversation(conversationId) {
+                    try {
+                        this.currentConversationId = conversationId;
+                        const response = await fetch(`/conversations/${conversationId}/messages`);
+                        const data = await response.json();
+                        this.messages = data.messages;
+                        this.showChat();
+                    } catch (error) {
+                        console.error('Failed to load conversation:', error);
+                    }
+                },
+                displayAnalyticsInChat() {
+                    if (!this.analytics) return;
+                    
+                    let analyticsHtml = this.generateAnalyticsHtml();
+                    this.messages.push({
+                        role: 'assistant',
+                        content: analyticsHtml
+                    });
+                    this.$nextTick(() => this.scrollToBottom());
+                },
+                generateAnalyticsHtml() {
+                    let html = '<div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">';
+                    html += '<div style="font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center;">📊 Canvas Analytics Dashboard</div>';
+                    
+                    // Metrics
+                    html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">';
+                    for (const [key, value] of Object.entries(this.metricsData)) {
+                        const label = this.formatLabel(key);
+                        html += `
+                            <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">${value}</div>
+                                <div style="font-size: 13px; opacity: 0.9;">${label}</div>
+                            </div>
+                        `;
+                    }
+                    html += '</div>';
+                    
+                    // Student Progress
+                    if (this.analytics.student_progress && this.analytics.student_progress.length > 0) {
+                        html += '<div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">';
+                        html += '<div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">🎓 Recent Student Progress</div>';
+                        html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">';
+                        this.analytics.student_progress.slice(0, 6).forEach(progress => {
+                            html += `
+                                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 12px;">
+                                    <div style="font-weight: 600;">${progress.student}</div>
+                                    <div style="opacity: 0.8;">${progress.course}</div>
+                                    <div style="color: #4ade80; font-weight: 600;">${progress.progress}</div>
+                                </div>
+                            `;
+                        });
+                        html += '</div></div>';
+                    }
+                    
+                    html += '</div>';
+                    return html;
+                },
+                async sendMessage() {
+                    if (!this.userInput.trim() || this.isLoading) return;
+                    
+                    const message = this.userInput.trim();
+                    this.messages.push({ role: 'user', content: message });
+                    this.userInput = '';
+                    this.isLoading = true;
+                    
+                    try {
+                        const response = await fetch('/inference', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model: 'gpt-4',
+                                messages: this.messages,
+                                temperature: 0.7,
+                                max_tokens: 1000,
+                                session_id: this.sessionId,
+                                user_role: this.userRole,
+                                canvas_user_id: this.canvasUserId,
+                                conversation_id: this.currentConversationId
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.session_id) this.sessionId = data.session_id;
+                        this.messages.push({ role: 'assistant', content: data.content });
+                    } catch (error) {
+                        this.messages.push({ role: 'assistant', content: 'Error: ' + error.message });
+                    } finally {
+                        this.isLoading = false;
+                        this.$nextTick(() => this.scrollToBottom());
+                    }
+                },
+                handleMetricClick(key) {
+                    if (key === 'total_courses' && this.analytics.course_details) {
+                        this.courseDetails = this.analytics.course_details;
+                        this.showCourseDetails = true;
+                    }
+                },
+                quickAction(action) {
+                    const actions = {
+                        'create_course': 'Create a new course for me',
+                        'create_module': 'Help me create a module',
+                        'create_assignment': 'I want to create an assignment'
+                    };
+                    
+                    if (actions[action]) {
+                        this.userInput = actions[action];
+                        this.showChat();
+                        this.sendMessage();
+                    }
+                },
+                showDashboard() {
+                    this.currentView = 'dashboard';
+                    this.showCourseDetails = false;
+                },
+                showChat() {
+                    this.currentView = 'chat';
+                },
+                scrollToBottom() {
+                    if (this.$refs.chatBox) {
+                        this.$refs.chatBox.scrollTop = this.$refs.chatBox.scrollHeight;
+                    }
+                },
+                formatLabel(key) {
+                    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                },
+                formatDate(dateStr) {
+                    return new Date(dateStr).toLocaleDateString();
+                },
+                logout() {
+                    localStorage.removeItem('canvas_token');
+                    localStorage.removeItem('canvas_role');
+                    localStorage.removeItem('canvas_username');
+                    localStorage.removeItem('canvas_user_id');
+                    window.location.href = '/canvas-login';
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

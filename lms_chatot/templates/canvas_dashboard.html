@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas LMS - Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f5f5; }
+        .header { background: #2563eb; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .role-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px; }
+        .logout-btn { background: white; color: #2563eb; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
+        .container { display: flex; height: calc(100vh - 60px); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
+        .nav-section { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+        .nav-section ul { list-style: none; }
+        .nav-section li { padding: 12px; margin-bottom: 5px; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+        .nav-section li:hover { background: #f3f4f6; }
+        .nav-section li.active { background: #dbeafe; color: #2563eb; font-weight: bold; }
+        .conversations-section { flex: 1; padding: 20px; overflow-y: auto; }
+        .conversations-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .conversations-header h3 { font-size: 16px; color: #1f2937; }
+        .new-chat-btn { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .conversation-item { padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; border: 1px solid #e5e7eb; transition: all 0.2s; }
+        .conversation-item:hover { background: #f9fafb; border-color: #d1d5db; }
+        .conversation-item.active { background: #dbeafe; border-color: #2563eb; }
+        .conversation-title { font-size: 13px; font-weight: 500; color: #1f2937; margin-bottom: 4px; }
+        .conversation-date { font-size: 11px; color: #6b7280; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .dashboard-widgets { padding: 20px; overflow-y: auto; background: #f8fafc; }
+        .widgets-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .widget-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; transition: all 0.2s; }
+        .widget-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .widget-header { display: flex; justify-content: between; align-items: center; margin-bottom: 15px; }
+        .widget-title { font-weight: 600; color: #1f2937; font-size: 16px; }
+        .widget-icon { width: 24px; height: 24px; margin-right: 8px; }
+        .widget-count { font-size: 32px; font-weight: 700; color: #2563eb; margin-bottom: 8px; }
+        .widget-subtitle { font-size: 14px; color: #6b7280; margin-bottom: 15px; }
+        .widget-list { space-y: 8px; }
+        .widget-item { padding: 8px 0; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: between; align-items: center; }
+        .widget-item:last-child { border-bottom: none; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .quick-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .action-btn { background: #f3f4f6; color: #374151; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .action-btn:hover { background: #e5e7eb; }
+        .chatbot-container { background: white; border-radius: 0; box-shadow: none; height: 100%; display: flex; flex-direction: column; border-left: 1px solid #e5e7eb; }
+        .chat-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+        .chat-box { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { margin-bottom: 15px; display: flex; }
+        .message.user { justify-content: flex-end; }
+        .message-content { max-width: 70%; padding: 10px 15px; border-radius: 10px; }
+        .message.user .message-content { background: #2563eb; color: white; }
+        .message.assistant .message-content { background: #e5e7eb; color: #1f2937; }
+        .input-area { padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; }
+        .input-area input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; }
+        .input-area button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .input-area button:hover { background: #1d4ed8; }
+        .input-area button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .thinking { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 8px; height: 8px; background: #6b7280; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Canvas LMS</h1>
+        <div class="user-info">
+            <span id="username"></span>
+            <span class="role-badge" id="roleBadge"></span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="sidebar">
+            <div class="nav-section">
+                <ul>
+                    <li onclick="showDashboard()">📊 Dashboard</li>
+                    <li>📚 Courses</li>
+                    <li>📅 Calendar</li>
+                    <li>📧 Inbox</li>
+                    <li class="active" onclick="showChat()">🤖 AI Assistant</li>
+                    <li>⚙️ Account</li>
+                </ul>
+            </div>
+            <div class="conversations-section">
+                <div class="conversations-header">
+                    <h3>💬 Conversations</h3>
+                    <button class="new-chat-btn" onclick="newConversation()">+ New</button>
+                </div>
+                <div id="conversationsList"></div>
+            </div>
+        </div>
+        <div class="main-content">
+            <div id="dashboardView" class="dashboard-widgets" style="display: none;">
+                <h2 style="margin-bottom: 20px; color: #1f2937;">📊 Dashboard Overview</h2>
+                <div id="widgetsContainer" class="widgets-grid"></div>
+            </div>
+            <div id="chatView" class="chatbot-container">
+                <div class="chat-header">
+                    <h2>🤖 Canvas AI Assistant</h2>
+                    <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Ask me anything about your courses and assignments</p>
+                </div>
+                <div class="chat-box" id="chatBox"></div>
+                <div class="input-area">
+                    <input type="text" id="userInput" placeholder="Type your message..." />
+                    <button id="sendBtn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messages = [];
+        let sessionId = null;
+        let currentConversationId = null;
+        let conversations = [];
+        let userRole = localStorage.getItem('canvas_role');
+        let username = localStorage.getItem('canvas_username');
+        let canvasUserId = localStorage.getItem('canvas_user_id') || 1;
+
+        if (!userRole || !username) {
+            window.location.href = '/canvas-login';
+        }
+
+        document.getElementById('username').textContent = username;
+        const roleText = userRole === 'student' ? 'Student' : (userRole === 'admin' ? 'Administrator' : 'Teacher');
+        document.getElementById('roleBadge').textContent = roleText;
+
+        // Initialize
+        loadConversations();
+        loadDashboardWidgets();
+        showDashboard();
+        
+        async function loadAnalyticsCards() {
+            try {
+                const response = await fetch(`/analytics?user_role=${userRole}&canvas_user_id=${canvasUserId}`);
+                const data = await response.json();
+                displayAnalyticsCards(data.analytics);
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+            }
+        }
+        
+        function displayAnalyticsCards(analytics) {
+            if (!analytics || Object.keys(analytics).length === 0) return;
+            
+            let cardsHtml = '<div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">';
+            cardsHtml += '<div style="font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center;">📊 Canvas Analytics Dashboard</div>';
+            
+            // Main metrics grid
+            cardsHtml += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">';
+            
+            for (const [key, value] of Object.entries(analytics)) {
+                if (key !== 'quick_actions' && key !== 'course_details' && key !== 'student_progress' && key !== 'user_distribution' && typeof value === 'number') {
+                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const isClickable = key === 'total_courses';
+                    cardsHtml += `
+                        <div onclick="${isClickable ? `showCourseDetails(${JSON.stringify(analytics.course_details || []).replace(/"/g, '&quot;')})` : ''}" 
+                             style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 10px; text-align: center; transition: all 0.3s; ${isClickable ? 'cursor: pointer;' : ''} border: 1px solid rgba(255,255,255,0.2);">
+                            <div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">${value}</div>
+                            <div style="font-size: 13px; opacity: 0.9;">${label}</div>
+                            ${isClickable ? '<div style="font-size: 10px; opacity: 0.7; margin-top: 5px;">Click for details</div>' : ''}
+                        </div>
+                    `;
+                }
+            }
+            cardsHtml += '</div>';
+            
+            // Student Progress Section (for teachers)
+            if (analytics.student_progress && analytics.student_progress.length > 0) {
+                cardsHtml += '<div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">';
+                cardsHtml += '<div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">🎓 Recent Student Progress</div>';
+                cardsHtml += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">';
+                analytics.student_progress.slice(0, 6).forEach(progress => {
+                    cardsHtml += `
+                        <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 12px;">
+                            <div style="font-weight: 600;">${progress.student}</div>
+                            <div style="opacity: 0.8;">${progress.course}</div>
+                            <div style="color: #4ade80; font-weight: 600;">${progress.progress}</div>
+                        </div>
+                    `;
+                });
+                cardsHtml += '</div></div>';
+            }
+            
+            // Quick Actions
+            if (analytics.quick_actions) {
+                cardsHtml += '<div style="text-align: center;">';
+                cardsHtml += '<div style="font-size: 14px; margin-bottom: 10px; opacity: 0.9;">Quick Actions</div>';
+                cardsHtml += '<div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">';
+                analytics.quick_actions.forEach(action => {
+                    cardsHtml += `<button onclick="quickAction('${action.action}')" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">${action.label}</button>`;
+                });
+                cardsHtml += '</div></div>';
+            }
+            
+            cardsHtml += '</div>';
+            
+            const chatBox = document.getElementById('chatBox');
+            const analyticsDiv = document.createElement('div');
+            analyticsDiv.innerHTML = cardsHtml;
+            chatBox.appendChild(analyticsDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        function showCourseDetails(courseDetails) {
+            if (!courseDetails || courseDetails.length === 0) {
+                addMessage('assistant', 'No course details available.');
+                return;
+            }
+            
+            let detailsHtml = '<div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 10px 0;">';
+            detailsHtml += '<div style="font-weight: 600; color: #1f2937; margin-bottom: 15px; font-size: 16px;">📚 Course Details</div>';
+            
+            courseDetails.forEach(course => {
+                const statusColor = course.state === 'available' ? '#10b981' : '#f59e0b';
+                detailsHtml += `
+                    <div style="background: white; padding: 12px; margin-bottom: 10px; border-radius: 6px; border-left: 4px solid ${statusColor}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-weight: 600; color: #1f2937;">${course.name}</div>
+                        <div style="display: flex; gap: 15px; margin-top: 8px; font-size: 13px; color: #6b7280;">
+                            <span>🎓 ${course.students || 0} Students</span>
+                            <span>📖 ${course.modules || 0} Modules</span>
+                            <span style="color: ${statusColor}; font-weight: 500;">${course.state === 'available' ? 'Published' : 'Draft'}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            detailsHtml += '</div>';
+            
+            const chatBox = document.getElementById('chatBox');
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'message assistant';
+            detailsDiv.innerHTML = `<div class="message-content">${detailsHtml}</div>`;
+            chatBox.appendChild(detailsDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function loadDashboardWidgets() {
+            try {
+                const response = await fetch(`/dashboard-widgets?user_role=${userRole}&canvas_user_id=${canvasUserId}`);
+                const data = await response.json();
+                renderWidgetsInDashboard(data.widgets);
+                const widgetsHtml = renderWidgetsAsMessage(data.widgets);
+                addMessage('assistant', widgetsHtml);
+            } catch (error) {
+                console.error('Failed to load widgets:', error);
+            }
+        }
+
+        async function loadConversations() {
+            try {
+                const response = await fetch(`/conversations?canvas_user_id=${canvasUserId}`);
+                const data = await response.json();
+                conversations = data.conversations;
+                renderConversations();
+            } catch (error) {
+                console.error('Failed to load conversations:', error);
+            }
+        }
+
+        function renderConversations() {
+            const container = document.getElementById('conversationsList');
+            container.innerHTML = '';
+            conversations.forEach(conv => {
+                const div = document.createElement('div');
+                div.className = `conversation-item ${conv.id === currentConversationId ? 'active' : ''}`;
+                div.onclick = () => loadConversation(conv.id);
+                div.innerHTML = `
+                    <div class="conversation-title">${conv.title}</div>
+                    <div class="conversation-date">${new Date(conv.updated_at).toLocaleDateString()}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function newConversation() {
+            try {
+                const response = await fetch('/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ canvas_user_id: canvasUserId, title: 'New Chat' })
+                });
+                const data = await response.json();
+                currentConversationId = data.conversation_id;
+                messages = [];
+                document.getElementById('chatBox').innerHTML = '';
+                loadConversations();
+                showChat();
+                // Auto-load analytics for new chat
+                loadAnalyticsCards();
+            } catch (error) {
+                console.error('Failed to create conversation:', error);
+            }
+        }
+
+        async function loadConversation(conversationId) {
+            try {
+                currentConversationId = conversationId;
+                const response = await fetch(`/conversations/${conversationId}/messages`);
+                const data = await response.json();
+                messages = data.messages;
+                renderMessages();
+                renderConversations();
+                showChat();
+            } catch (error) {
+                console.error('Failed to load conversation:', error);
+            }
+        }
+
+        function renderMessages() {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            messages.forEach(msg => {
+                addMessage(msg.role, msg.content);
+            });
+        }
+
+        function showDashboard() {
+            document.getElementById('dashboardView').style.display = 'block';
+            document.getElementById('chatView').style.display = 'none';
+            document.querySelectorAll('.nav-section li').forEach(li => li.classList.remove('active'));
+            document.querySelectorAll('.nav-section li')[0].classList.add('active');
+        }
+
+        function showChat() {
+            document.getElementById('dashboardView').style.display = 'none';
+            document.getElementById('chatView').style.display = 'flex';
+            document.querySelectorAll('.nav-section li').forEach(li => li.classList.remove('active'));
+            document.querySelectorAll('.nav-section li')[4].classList.add('active');
+        }
+
+        function renderWidgetsInDashboard(widgets) {
+            const container = document.getElementById('widgetsContainer');
+            container.innerHTML = '';
+            
+            for (const [key, widget] of Object.entries(widgets)) {
+                const widgetDiv = document.createElement('div');
+                widgetDiv.className = 'widget-card';
+                
+                let html = `<div class="widget-header"><div class="widget-title">${widget.title}</div></div>`;
+                
+                if (widget.count !== undefined) {
+                    html += `<div class="widget-count">${widget.count}</div>`;
+                    html += `<div class="widget-subtitle">Total items</div>`;
+                }
+                
+                if (widget.total_courses !== undefined) {
+                    html += `<div class="widget-count">${widget.total_courses}</div>`;
+                    html += `<div class="widget-subtitle">Total Courses</div>`;
+                    html += `<div style="display: flex; gap: 15px; margin-top: 10px;">`;
+                    html += `<span class="badge badge-info">${widget.total_users} Users</span>`;
+                    html += `<span class="badge badge-success">${widget.active_courses} Active</span>`;
+                    html += `</div>`;
+                }
+                
+                if (widget.items && widget.items.length > 0) {
+                    html += '<div class="widget-list">';
+                    widget.items.slice(0, 5).forEach(item => {
+                        const badge = item.published !== undefined ? 
+                            (item.published ? '<span class="badge badge-success">Published</span>' : '<span class="badge badge-warning">Draft</span>') : '';
+                        html += `<div class="widget-item"><span>${item.name || item.title || item.course}</span>${badge}</div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (widget.actions) {
+                    html += '<div class="quick-actions">';
+                    widget.actions.forEach(action => {
+                        html += `<button class="action-btn" onclick="quickAction('${action.action}')">${action.label}</button>`;
+                    });
+                    html += '</div>';
+                }
+                
+                widgetDiv.innerHTML = html;
+                container.appendChild(widgetDiv);
+            }
+        }
+        
+        function renderWidgetsAsMessage(widgets) {
+            let html = '<div style="max-width: 100%;">';
+            html += '<p style="margin-bottom: 15px;"><strong>📊 Your Dashboard Overview</strong></p>';
+            html += '<p style="margin-bottom: 15px; font-size: 14px; color: #6b7280;">Here\'s a quick summary of your Canvas activity:</p>';
+            
+            for (const [key, widget] of Object.entries(widgets)) {
+                if (widget.count !== undefined || widget.total_courses !== undefined) {
+                    const count = widget.count || widget.total_courses;
+                    html += `<p>• <strong>${widget.title}:</strong> ${count}</p>`;
+                }
+            }
+            
+            html += '<p style="margin-top: 15px; font-size: 13px; color: #6b7280;">💬 How can I help you today? You can ask me to create courses, add modules, or manage your content!</p>';
+            html += '</div>';
+            return html;
+        }
+        
+        function quickAction(action) {
+            const actions = {
+                'create_course': 'Create a new course for me',
+                'create_module': 'Help me create a module',
+                'create_assignment': 'I want to create an assignment'
+            };
+            
+            if (actions[action]) {
+                document.getElementById('userInput').value = actions[action];
+                showChat();
+                sendMessage();
+            }
+        }
+
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function addMessage(role, content) {
+            const chatBox = document.getElementById('chatBox');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const userMessage = input.value.trim();
+            
+            if (!userMessage) return;
+
+            addMessage('user', userMessage);
+            messages.push({ role: 'user', content: userMessage });
+            input.value = '';
+            sendBtn.disabled = true;
+
+            // Add thinking indicator
+            const thinkingId = 'thinking-' + Date.now();
+            const chatBox = document.getElementById('chatBox');
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.id = thinkingId;
+            thinkingDiv.className = 'message assistant';
+            thinkingDiv.innerHTML = '<div class="message-content thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Thinking...</div>';
+            chatBox.appendChild(thinkingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/inference', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        model: 'gpt-4', 
+                        messages, 
+                        temperature: 0.7, 
+                        max_tokens: 1000, 
+                        session_id: sessionId, 
+                        user_role: userRole,
+                        canvas_user_id: canvasUserId,
+                        conversation_id: currentConversationId
+                    })
+                });
+
+                // Remove thinking indicator
+                document.getElementById(thinkingId).remove();
+
+                if (!response.ok) throw new Error('API request failed');
+
+                const data = await response.json();
+                if (data.session_id) sessionId = data.session_id;
+                addMessage('assistant', data.content);
+                messages.push({ role: 'assistant', content: data.content });
+            } catch (error) {
+                document.getElementById(thinkingId)?.remove();
+                addMessage('assistant', 'Error: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('canvas_token');
+            localStorage.removeItem('canvas_role');
+            localStorage.removeItem('canvas_username');
+            window.location.href = '/canvas-login';
+        }
+    </script>
+</body>
+</html>

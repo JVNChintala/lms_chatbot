@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas AI Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: transparent; height: 100vh; }
+        .chatbot-container { height: 100vh; display: flex; flex-direction: column; background: white; }
+        .chat-header { padding: 15px; background: #2563eb; color: white; }
+        .chat-box { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { margin-bottom: 15px; display: flex; }
+        .message.user { justify-content: flex-end; }
+        .message-content { max-width: 70%; padding: 10px 15px; border-radius: 10px; }
+        .message.user .message-content { background: #2563eb; color: white; }
+        .message.assistant .message-content { background: #e5e7eb; color: #1f2937; }
+        .input-area { padding: 15px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; }
+        .input-area input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; }
+        .input-area button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .input-area button:hover { background: #1d4ed8; }
+        .input-area button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .thinking { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 8px; height: 8px; background: #6b7280; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div class="chatbot-container">
+        <div class="chat-header">
+            <h2>AI Assistant</h2>
+        </div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Ask me anything..." />
+            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let messages = [];
+        let sessionId = null;
+        let userRole = null;
+        let canvasUserId = null;
+
+        // Get user info from Canvas context (passed via URL params)
+        const urlParams = new URLSearchParams(window.location.search);
+        canvasUserId = urlParams.get('user_id');
+        userRole = urlParams.get('role') || 'student';
+
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function addMessage(role, content) {
+            const chatBox = document.getElementById('chatBox');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const userMessage = input.value.trim();
+            
+            if (!userMessage) return;
+
+            addMessage('user', userMessage);
+            messages.push({ role: 'user', content: userMessage });
+            input.value = '';
+            sendBtn.disabled = true;
+
+            // Add thinking indicator
+            const thinkingId = 'thinking-' + Date.now();
+            const chatBox = document.getElementById('chatBox');
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.id = thinkingId;
+            thinkingDiv.className = 'message assistant';
+            thinkingDiv.innerHTML = '<div class="message-content thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Working on it...</div>';
+            chatBox.appendChild(thinkingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/inference', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        model: 'gpt-4-turbo-preview', 
+                        messages, 
+                        temperature: 0.7, 
+                        max_tokens: 1000, 
+                        session_id: sessionId, 
+                        user_role: userRole,
+                        canvas_user_id: canvasUserId
+                    })
+                });
+
+                // Remove thinking indicator
+                document.getElementById(thinkingId).remove();
+
+                if (!response.ok) throw new Error('API request failed');
+
+                const data = await response.json();
+                if (data.session_id) sessionId = data.session_id;
+                addMessage('assistant', data.content);
+                messages.push({ role: 'assistant', content: data.content });
+            } catch (error) {
+                document.getElementById(thinkingId)?.remove();
+                addMessage('assistant', 'Error: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+    </script>
+</body>
+</html>

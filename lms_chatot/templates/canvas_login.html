@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas LMS - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f5f5; }
+        .login-container { max-width: 400px; margin: 100px auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .logo { text-align: center; margin-bottom: 30px; }
+        .logo h1 { color: #2563eb; font-size: 28px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .btn { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        .btn:hover { background: #1d4ed8; }
+        .demo-info { margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 4px; font-size: 13px; color: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>Canvas LMS</h1>
+            <p>Demo Login</p>
+        </div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="btn">Login</button>
+        </form>
+        <div class="demo-info">
+            <strong>Demo Mode:</strong> Default admin login: username=<code>admin</code>, password=<code>admin123</code><br>
+            Admins can create teacher and student users through the chatbot.
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/demo-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!response.ok) {
+                    alert('Invalid credentials');
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.token) {
+                    localStorage.setItem('canvas_token', data.token);
+                    localStorage.setItem('canvas_role', data.role);
+                    localStorage.setItem('canvas_username', username);
+                    if (data.canvas_user_id) {
+                        localStorage.setItem('canvas_user_id', data.canvas_user_id);
+                    }
+                    window.location.href = '/canvas-dashboard';
+                }
+            } catch (error) {
+                alert('Login failed: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
