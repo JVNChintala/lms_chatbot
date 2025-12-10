@@ -11,7 +11,7 @@ class GeminiInference(BaseInference):
         self.client = None
         if self.is_available():
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            self.model = genai.GenerativeModel('gemini-pro')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
     
     def is_available(self) -> bool:
         return bool(os.getenv('GEMINI_API_KEY'))
