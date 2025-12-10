@@ -156,6 +156,49 @@
                         <div v-for="(message, index) in messages" :key="index" 
                              class="message" :class="message.role">
                             <div class="message-content" v-html="message.content"></div>
+                            <!-- Dynamic Analytics Widget -->
+                            <div v-if="message.analytics && message.role === 'assistant'" 
+                                 class="chat-analytics-widget" 
+                                 style="margin: 15px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                                <div class="analytics-header" style="font-size: 16px; font-weight: 600; margin-bottom: 15px; text-align: center;">
+                                    📊 Canvas Analytics
+                                </div>
+                                
+                                <!-- Metrics Cards -->
+                                <div class="metrics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                                    <div v-for="(value, key) in getMetrics(message.analytics)" :key="key" 
+                                         class="metric-card" 
+                                         style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 24px; font-weight: 700; margin-bottom: 5px;">{{ value }}</div>
+                                        <div style="font-size: 11px; opacity: 0.9;">{{ formatLabel(key) }}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Recent Courses -->
+                                <div v-if="message.analytics.recent_courses && message.analytics.recent_courses.length > 0" 
+                                     style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">📚 Recent Courses</div>
+                                    <div v-for="course in message.analytics.recent_courses" :key="course.id" 
+                                         style="background: rgba(255,255,255,0.1); padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 12px;">
+                                        {{ course.name }}
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick Actions -->
+                                <div v-if="message.analytics.quick_actions && message.analytics.quick_actions.length > 0" 
+                                     class="quick-actions" style="text-align: center;">
+                                    <div style="font-size: 13px; margin-bottom: 10px; opacity: 0.9;">Quick Actions</div>
+                                    <button v-for="action in message.analytics.quick_actions" :key="action.action"
+                                            @click="executeQuickAction(action)"
+                                            style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); 
+                                                   padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; 
+                                                   margin: 0 3px; transition: all 0.3s;"
+                                            @mouseover="$event.target.style.background='rgba(255,255,255,0.3)'"
+                                            @mouseout="$event.target.style.background='rgba(255,255,255,0.2)'">
+                                        {{ action.label }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div v-if="isLoading" class="message assistant">
                             <div class="message-content loading">
@@ -340,9 +383,16 @@
                         
                         const data = await response.json();
                         if (data.session_id) this.sessionId = data.session_id;
-                        this.messages.push({ role: 'assistant', content: data.content });
+                        
+                        // Add message with analytics
+                        const assistantMessage = { 
+                            role: 'assistant', 
+                            content: data.content,
+                            analytics: data.analytics || null
+                        };
+                        this.messages.push(assistantMessage);
                     } catch (error) {
-                        this.messages.push({ role: 'assistant', content: 'Error: ' + error.message });
+                        this.messages.push({ role: 'assistant', content: 'Error: ' + error.message, analytics: null });
                     } finally {
                         this.isLoading = false;
                         this.$nextTick(() => this.scrollToBottom());
@@ -384,6 +434,22 @@
                 },
                 formatDate(dateStr) {
                     return new Date(dateStr).toLocaleDateString();
+                },
+                getMetrics(analytics) {
+                    if (!analytics) return {};
+                    const metrics = {};
+                    for (const [key, value] of Object.entries(analytics)) {
+                        if (typeof value === 'number' && !['quick_actions', 'recent_courses'].includes(key)) {
+                            metrics[key] = value;
+                        }
+                    }
+                    return metrics;
+                },
+                executeQuickAction(action) {
+                    if (action.prompt) {
+                        this.userInput = action.prompt;
+                        this.sendMessage();
+                    }
                 },
                 logout() {
                     localStorage.removeItem('canvas_token');

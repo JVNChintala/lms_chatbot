@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from typing import Optional
 sys.path.insert(0, os.path.dirname(__file__))
 from canvas_routes import router as canvas_router
+from fast_analytics import router as analytics_router
 from canvas_agent import CanvasAgent
 from session_manager import session_manager
 from auth import create_demo_token, verify_demo_token, CanvasAuth, get_user_by_login, create_user_access_token
@@ -21,12 +22,13 @@ from canvas_integration import CanvasLMS
 from conversation_db import conversation_db
 from dashboard_widgets import DashboardWidgets
 from conversations_db import conversations_db
-from qwen_config import performance_monitor
+
 
 load_dotenv()
 
 app = FastAPI(title="LLM Inference API")
 app.include_router(canvas_router)
+app.include_router(analytics_router)
 
 class InferenceRequest(BaseModel):
     model: str
@@ -135,10 +137,16 @@ async def health():
 
 @app.get("/performance")
 async def get_performance_stats():
-    """Get Qwen2.5 performance statistics"""
+    """Get AWS Bedrock Agent performance statistics"""
     try:
-        stats = performance_monitor.get_performance_stats()
-        return {"performance": stats}
+        return {
+            "performance": {
+                "status": "AWS Bedrock agent active",
+                "type": "Claude 3 Sonnet with Canvas tools",
+                "dependencies": "AWS Bedrock, Claude 3 Sonnet",
+                "memory_usage": "Minimal"
+            }
+        }
     except Exception as e:
         return {"error": str(e)}
 

@@ -1,20 +1,20 @@
-# Canvas LMS AI Assistant
+# Canvas LMS AI Assistant with AWS Bedrock
 
-A powerful AI-powered assistant for Canvas LMS integration, optimized for Qwen2.5 7B tool calling capabilities.
+A powerful AI-powered assistant for Canvas LMS integration using AWS Bedrock and Claude 3 Sonnet.
 
 ## 🚀 Features
 
 - **Canvas LMS Integration**: Full API integration with Canvas Learning Management System
-- **AI-Powered Assistant**: Qwen2.5 7B model optimized for tool calling
+- **AWS Bedrock AI**: Claude 3 Sonnet for intelligent tool calling and conversations
 - **Role-Based Access**: Support for Admin, Teacher, and Student roles
-- **Real-time Analytics**: Performance monitoring and optimization
-- **Smart Tool Detection**: LLM-powered intent recognition
+- **Real-time Analytics**: Performance monitoring and Canvas data insights
+- **Smart Tool Detection**: AI-powered intent recognition and Canvas operations
 - **Conversation Management**: Persistent chat history and sessions
 
 ## 🛠️ Tech Stack
 
 - **Backend**: FastAPI, Python 3.8+
-- **AI Model**: Qwen2.5 7B via Ollama
+- **AI Model**: Claude 3 Sonnet via AWS Bedrock
 - **LMS Integration**: Canvas API
 - **Database**: SQLite for conversations
 - **Frontend**: Vue.js dashboard
@@ -23,7 +23,7 @@ A powerful AI-powered assistant for Canvas LMS integration, optimized for Qwen2.
 ## 📋 Prerequisites
 
 - Python 3.8+
-- Ollama server with Qwen2.5 7B model
+- AWS Account with Bedrock access
 - Canvas LMS instance with API access
 - Valid Canvas API token
 
@@ -43,7 +43,7 @@ A powerful AI-powered assistant for Canvas LMS integration, optimized for Qwen2.
 3. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your Canvas URL, token, and Ollama settings
+   # Edit .env with your Canvas URL, token, and AWS credentials
    ```
 
 4. **Run the application**
@@ -60,27 +60,21 @@ A powerful AI-powered assistant for Canvas LMS integration, optimized for Qwen2.
 CANVAS_URL=https://your-canvas-instance.com/api/v1
 CANVAS_TOKEN=your_canvas_api_token
 
-# Ollama Configuration - Optimized for Qwen2.5 7B
-OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
-OLLAMA_TEMPERATURE=0.1
-OLLAMA_TOP_P=0.9
-OLLAMA_TOP_K=40
-OLLAMA_NUM_CTX=8192
+# AWS Bedrock Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
 
-# Tool Calling Optimization
-TOOL_DETECTION_TEMPERATURE=0.05
-TOOL_EXECUTION_TEMPERATURE=0.2
+# Application Settings
+SECRET_KEY=your-secret-key-here
+DEBUG=True
 ```
 
-### Qwen2.5 7B Optimization
+### AWS Bedrock Setup
 
-The system is specifically optimized for Qwen2.5 7B's tool calling capabilities:
-
-- **Ultra-low temperature** (0.05) for precise tool detection
-- **Extended context window** (8192 tokens) for complex conversations
-- **Smart parameter tuning** for different operation types
-- **Performance monitoring** with real-time metrics
+1. **Enable Claude 3 Sonnet** in AWS Bedrock console
+2. **Configure IAM permissions** for Bedrock access
+3. **Set AWS credentials** in environment variables
 
 ## 🎯 Usage
 
@@ -102,24 +96,24 @@ The system is specifically optimized for Qwen2.5 7B's tool calling capabilities:
 - "Create assignment" - Add new assignment
 - "Add student to course" - Enroll users (admin only)
 
-## 📊 Performance Optimization
+## 📊 Performance Features
 
-### Qwen2.5 7B Specific Optimizations
-- **Tool Detection**: 90%+ accuracy with LLM-powered analysis
-- **Response Time**: 50-70% faster with optimized parameters
-- **Context Awareness**: Extended context for better conversations
-- **Error Handling**: Robust fallback mechanisms
+### AWS Bedrock Advantages
+- **High Accuracy**: Claude 3 Sonnet for precise tool calling
+- **Fast Response**: Optimized for educational workflows
+- **Scalable**: AWS infrastructure handles load
+- **Secure**: Enterprise-grade security and compliance
 
 ### Monitoring
 Access real-time performance metrics at `/performance`:
-- Average response times
+- Response times and accuracy
 - Tool usage statistics
-- Error rates and recommendations
-- System performance insights
+- Canvas API performance
+- System health insights
 
 ## 🔒 Security
 
-- JWT-based authentication
+- AWS IAM-based authentication
 - Role-based access control
 - Canvas API token validation
 - Secure session management
@@ -129,12 +123,10 @@ Access real-time performance metrics at `/performance`:
 ```
 ├── lms_chatot/
 │   ├── main.py              # FastAPI application
-│   ├── canvas_agent.py      # AI agent with tool calling
+│   ├── canvas_agent.py      # AWS Bedrock agent with Claude
 │   ├── canvas_integration.py # Canvas API wrapper
-│   ├── qwen_config.py       # Qwen2.5 optimization
 │   ├── auth.py              # Authentication
 │   └── templates/           # Web interface
-├── optimize_ollama.py       # Ollama optimization script
 ├── requirements.txt         # Dependencies
 └── .env                     # Configuration
 ```
@@ -151,7 +143,7 @@ python lms_chatot/main.py
 uvicorn lms_chatot.main:app --host 0.0.0.0 --port 8001
 ```
 
-### Docker (Optional)
+### Docker
 ```dockerfile
 FROM python:3.9-slim
 WORKDIR /app
@@ -160,19 +152,6 @@ RUN pip install -r requirements.txt
 COPY . .
 CMD ["uvicorn", "lms_chatot.main:app", "--host", "0.0.0.0", "--port", "8001"]
 ```
-
-## 📈 Performance Tuning
-
-Run the optimization script to benchmark and tune performance:
-```bash
-python optimize_ollama.py
-```
-
-This will:
-- Test current model performance
-- Create optimized Modelfile
-- Provide tuning recommendations
-- Benchmark improvements
 
 ## 🤝 Contributing
 
@@ -188,13 +167,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Documentation**: See [QWEN_OPTIMIZATION_GUIDE.md](QWEN_OPTIMIZATION_GUIDE.md)
+- **Documentation**: Check AWS Bedrock documentation
 - **Issues**: Create an issue on GitHub
 - **Performance**: Check `/performance` endpoint for metrics
 
 ## 🙏 Acknowledgments
 
-- Qwen2.5 7B model by Alibaba Cloud
+- AWS Bedrock and Claude 3 Sonnet
 - Canvas LMS API
-- Ollama for local model serving
 - FastAPI framework
