@@ -167,7 +167,7 @@ For students, you have access to enhanced features:
                 # Get final response from inference system
                 if hasattr(self.inference_manager.active_system, 'get_final_response'):
                     final_content = self.inference_manager.get_final_response(
-                        messages, tool_result, result.get("tool_call_id") or result.get("tool_use_id")
+                        messages, tool_result, result.get("tool_call_id") or result.get("tool_use_id") or result.get("response_text")
                     )
                 else:
                     final_content = f"Executed {result['tool_name']}: {tool_result}"

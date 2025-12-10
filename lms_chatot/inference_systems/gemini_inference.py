@@ -17,44 +17,34 @@ class GeminiInference(BaseInference):
         return bool(os.getenv('GEMINI_API_KEY'))
     
     def call_with_tools(self, system_prompt: str, messages: list, tools: list) -> dict:
-        """Call Gemini API with function calling"""
-        # Convert tools to Gemini format
-        gemini_tools = []
-        for tool in tools:
-            gemini_tool = {
-                "function_declarations": [{
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "parameters": tool["input_schema"]
-                }]
-            }
-            gemini_tools.append(gemini_tool)
-        
-        # Prepare prompt
+        """Call Gemini API with simple text generation"""
         user_message = messages[-1]["content"] if messages else ""
-        full_prompt = f"{system_prompt}\n\nUser: {user_message}"
+        
+        # Simple tool detection via prompt
+        tool_prompt = f"{system_prompt}\n\nAvailable tools: {[t['name'] for t in tools]}\n\nUser: {user_message}\n\nIf you need to use a tool, respond with 'TOOL: tool_name' followed by parameters. Otherwise, respond normally."
         
         try:
-            # Call Gemini with tools
-            model_with_tools = genai.GenerativeModel('gemini-pro', tools=gemini_tools)
-            response = model_with_tools.generate_content(full_prompt)
+            response = self.model.generate_content(tool_prompt)
+            response_text = response.text.strip()
             
-            # Check for function calls
-            if response.candidates[0].content.parts:
-                for part in response.candidates[0].content.parts:
-                    if hasattr(part, 'function_call'):
-                        function_call = part.function_call
-                        return {
-                            "needs_tool": True,
-                            "tool_name": function_call.name,
-                            "tool_args": dict(function_call.args),
-                            "function_call": function_call
-                        }
+            # Check if tool is requested
+            if response_text.startswith('TOOL:'):
+                parts = response_text.split(':', 1)
+                if len(parts) > 1:
+                    tool_name = parts[1].strip().split()[0]
+                    # Find matching tool
+                    for tool in tools:
+                        if tool["name"] == tool_name:
+                            return {
+                                "needs_tool": True,
+                                "tool_name": tool_name,
+                                "tool_args": {},  # Simple implementation
+                                "response_text": response_text
+                            }
             
-            # No tool use
             return {
                 "needs_tool": False,
-                "content": response.text
+                "content": response_text
             }
             
         except Exception as e:
@@ -63,26 +53,11 @@ class GeminiInference(BaseInference):
                 "content": f"Gemini error: {str(e)}"
             }
     
-    def get_final_response(self, messages: list, tool_result: dict, function_call) -> str:
+    def get_final_response(self, messages: list, tool_result: dict, response_text: str) -> str:
         """Get final response after tool execution"""
         try:
-            # Create function response
-            function_response = genai.protos.Part(
-                function_response=genai.protos.FunctionResponse(
-                    name=function_call.name,
-                    response={"result": json.dumps(tool_result)}
-                )
-            )
-            
-            # Get final response
-            response = self.model.generate_content([
-                genai.protos.Content(parts=[
-                    genai.protos.Part(function_call=function_call),
-                    function_response
-                ])
-            ])
-            
+            final_prompt = f"Tool result: {json.dumps(tool_result)}\n\nProvide a helpful response based on this Canvas data:"
+            response = self.model.generate_content(final_prompt)
             return response.text
-            
         except Exception as e:
             return f"Tool executed successfully: {tool_result}"
