@@ -94,5 +94,16 @@ class ConversationsDB:
         cursor.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
         conn.commit()
         conn.close()
+    
+    def update_conversation_title(self, conversation_id: int, title: str):
+        """Update conversation title"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (title, conversation_id)
+        )
+        conn.commit()
+        conn.close()
 
 conversations_db = ConversationsDB()

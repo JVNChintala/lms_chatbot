@@ -14,6 +14,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(__file__))
 from canvas_routes import router as canvas_router
 from fast_analytics import router as analytics_router
+from file_upload_routes import router as file_upload_router
 from canvas_agent import CanvasAgent
 from session_manager import session_manager
 from auth import create_demo_token, verify_demo_token, CanvasAuth, get_user_by_login, create_user_access_token
@@ -29,6 +30,7 @@ load_dotenv()
 app = FastAPI(title="LLM Inference API")
 app.include_router(canvas_router)
 app.include_router(analytics_router)
+app.include_router(file_upload_router)
 
 class InferenceRequest(BaseModel):
     model: str
@@ -306,6 +308,16 @@ async def delete_conversation(conversation_id: int):
     """Delete a conversation"""
     try:
         conversations_db.delete_conversation(conversation_id)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/conversations/{conversation_id}/title")
+async def update_conversation_title(conversation_id: int, request: dict):
+    """Update conversation title"""
+    try:
+        title = request.get("title", "Untitled")
+        conversations_db.update_conversation_title(conversation_id, title)
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

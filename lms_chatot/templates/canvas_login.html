@@ -13,9 +13,15 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
         .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-        .btn { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        .btn { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; transition: all 0.2s; }
         .btn:hover { background: #1d4ed8; }
+        .btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .loading { display: none; align-items: center; justify-content: center; gap: 8px; }
+        .spinner { width: 16px; height: 16px; border: 2px solid #ffffff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .demo-info { margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 4px; font-size: 13px; color: #1e40af; }
+        .error-message { margin-top: 10px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; color: #dc2626; font-size: 14px; display: none; }
+        .success-message { margin-top: 10px; padding: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; color: #16a34a; font-size: 14px; display: none; }
     </style>
 </head>
 <body>
@@ -33,7 +39,15 @@
                 <label>Password</label>
                 <input type="password" id="password" required>
             </div>
-            <button type="submit" class="btn">Login</button>
+            <button type="submit" class="btn" id="loginBtn">
+                <span id="loginText">Login</span>
+                <div class="loading" id="loginLoading">
+                    <div class="spinner"></div>
+                    <span>Logging in...</span>
+                </div>
+            </button>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
         </form>
         <div class="demo-info">
             <strong>Demo Mode:</strong> Default admin login: username=<code>admin</code>, password=<code>admin123</code><br>
@@ -42,35 +56,97 @@
     </div>
 
     <script>
+        const loginBtn = document.getElementById('loginBtn');
+        const loginText = document.getElementById('loginText');
+        const loginLoading = document.getElementById('loginLoading');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        
+        function showLoading() {
+            loginBtn.disabled = true;
+            loginText.style.display = 'none';
+            loginLoading.style.display = 'flex';
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+        }
+        
+        function hideLoading() {
+            loginBtn.disabled = false;
+            loginText.style.display = 'block';
+            loginLoading.style.display = 'none';
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+        
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+        
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-
+            
+            // Show loading immediately
+            showLoading();
+            
             try {
                 const response = await fetch('/demo-login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-
+                
+                const data = await response.json();
+                
                 if (!response.ok) {
-                    alert('Invalid credentials');
+                    hideLoading();
+                    showError(data.detail || 'Invalid credentials. Please try again.');
                     return;
                 }
-
-                const data = await response.json();
+                
                 if (data.token) {
+                    // Show success message
+                    showSuccess('Login successful! Redirecting to dashboard...');
+                    
+                    // Store credentials
                     localStorage.setItem('canvas_token', data.token);
                     localStorage.setItem('canvas_role', data.role);
                     localStorage.setItem('canvas_username', username);
                     if (data.canvas_user_id) {
                         localStorage.setItem('canvas_user_id', data.canvas_user_id);
                     }
-                    window.location.href = '/canvas-dashboard';
+                    
+                    // Redirect after short delay to show success message
+                    setTimeout(() => {
+                        window.location.href = '/canvas-dashboard';
+                    }, 1000);
+                } else {
+                    hideLoading();
+                    showError('Login failed. Please check your credentials.');
                 }
+                
             } catch (error) {
-                alert('Login failed: ' + error.message);
+                hideLoading();
+                showError('Connection error. Please check your internet connection and try again.');
+                console.error('Login error:', error);
+            }
+        });
+        
+        // Auto-focus username field
+        document.getElementById('username').focus();
+        
+        // Enter key support
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !loginBtn.disabled) {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
             }
         });
     </script>

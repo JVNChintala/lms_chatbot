@@ -86,19 +86,6 @@
                         <li>⚙️ Account</li>
                     </ul>
                 </div>
-                <div class="conversations-section">
-                    <div class="conversations-header">
-                        <h3>💬 Conversations</h3>
-                        <button class="new-chat-btn" @click="newConversation">+ New</button>
-                    </div>
-                    <div v-for="conv in conversations" :key="conv.id" 
-                         class="conversation-item" 
-                         :class="{ active: conv.id === currentConversationId }"
-                         @click="loadConversation(conv.id)">
-                        <div class="conversation-title">{{ conv.title }}</div>
-                        <div class="conversation-date">{{ formatDate(conv.updated_at) }}</div>
-                    </div>
-                </div>
             </div>
             <div class="main-content">
                 <div v-if="currentView === 'dashboard'" class="dashboard-view">
@@ -147,10 +134,136 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="currentView === 'chat'" class="chat-container">
-                    <div class="chat-header">
-                        <h2>🤖 Canvas AI Assistant</h2>
-                        <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Ask me anything about your courses and assignments</p>
+                <div v-if="currentView === 'chat'" class="chat-container" style="display: flex; height: 100%;">
+                    <!-- Conversations Sidebar -->
+                    <div class="chat-conversations-sidebar" 
+                         :style="{ width: showConversations ? '280px' : '60px', transition: 'width 0.3s', background: '#f8fafc', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }">
+                        
+                        <!-- Toggle Button -->
+                        <div style="padding: 15px; borderBottom: '1px solid #e5e7eb'; textAlign: 'center';">
+                            <button @click="showConversations = !showConversations" 
+                                    style="background: #2563eb; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; width: 100%;">
+                                {{ showConversations ? '◀️' : '💬' }}
+                            </button>
+                        </div>
+                        
+                        <!-- Conversations List -->
+                        <div v-if="showConversations" style="flex: 1; overflow-y: auto; padding: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="font-size: 14px; font-weight: 600; color: #1f2937;">💬 Conversations</h3>
+                                <button @click="newConversation" 
+                                        style="background: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                    + New
+                                </button>
+                            </div>
+                            
+                            <div v-for="conv in conversations" :key="conv.id" 
+                                 @click="loadConversation(conv.id)"
+                                 :style="{ 
+                                     padding: '10px', 
+                                     marginBottom: '8px', 
+                                     borderRadius: '6px', 
+                                     cursor: 'pointer', 
+                                     border: '1px solid #e5e7eb', 
+                                     background: conv.id === currentConversationId ? '#dbeafe' : 'white',
+                                     borderColor: conv.id === currentConversationId ? '#2563eb' : '#e5e7eb',
+                                     transition: 'all 0.2s'
+                                 }"
+                                 @mouseover="$event.target.style.background = conv.id === currentConversationId ? '#dbeafe' : '#f9fafb'"
+                                 @mouseout="$event.target.style.background = conv.id === currentConversationId ? '#dbeafe' : 'white'">
+                                <div style="font-weight: 600; font-size: 12px; color: #1f2937; margin-bottom: 4px;">{{ conv.title }}</div>
+                                <div style="font-size: 10px; color: #6b7280;">{{ formatDate(conv.updated_at) }}</div>
+                                <button @click.stop="deleteConversation(conv.id)" 
+                                        style="position: absolute; right: 8px; top: 8px; background: #ef4444; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; opacity: 0.7;"
+                                        @mouseover="$event.target.style.opacity = '1'"
+                                        @mouseout="$event.target.style.opacity = '0.7'">
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Conversation Stats -->
+                        <div v-if="showConversations" style="padding: 10px; border-top: 1px solid #e5e7eb; background: #f1f5f9;">
+                            <div style="font-size: 11px; color: #64748b; text-align: center;">
+                                {{ conversations.length }} conversations
+                            </div>
+                            <div style="font-size: 10px; color: #94a3b8; text-align: center; margin-top: 2px;">
+                                {{ messages.length }} messages in current chat
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Chat Area -->
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <div class="chat-header" style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h2>🤖 Canvas AI Assistant</h2>
+                                    <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Ask me anything about your courses and assignments</p>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button v-if="userRole !== 'student'" @click="showFileUpload = !showFileUpload" 
+                                            style="background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        {{ showFileUpload ? '❌ Close Upload' : '📁 Upload Files' }}
+                                    </button>
+                                    <button @click="clearCurrentChat" 
+                                            style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        🗑️ Clear Chat
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                    <!-- File Upload Widget -->
+                    <div v-if="showFileUpload" class="file-upload-widget" 
+                         style="margin: 15px 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                        <div class="upload-header" style="font-size: 16px; font-weight: 600; margin-bottom: 15px; text-align: center;">
+                            📁 File Upload & Canvas Integration
+                        </div>
+                        
+                        <div class="upload-form" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <input type="file" ref="fileInput" @change="handleFileSelect" 
+                                   accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.mp4,.ppt,.pptx,.zip" 
+                                   style="width: 100%; padding: 10px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
+                            
+                            <div style="margin: 10px 0;">
+                                <select v-model="uploadType" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
+                                    <option value="assignment">Create Assignment</option>
+                                    <option value="module">Add to Module</option>
+                                    <option value="submission" v-if="userRole === 'student'">Submit Assignment</option>
+                                </select>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
+                                <input type="number" v-model="uploadCourseId" placeholder="Course ID" 
+                                       style="padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
+                                <input type="text" v-model="uploadItemName" placeholder="Assignment/Module Name" 
+                                       style="padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
+                            </div>
+                            
+                            <div v-if="uploadType === 'module'" style="margin: 10px 0;">
+                                <input type="number" v-model="uploadModuleId" placeholder="Module ID" 
+                                       style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
+                            </div>
+                            
+                            <div v-if="uploadType === 'submission'" style="margin: 10px 0;">
+                                <input type="number" v-model="uploadAssignmentId" placeholder="Assignment ID" 
+                                       style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
+                            </div>
+                            
+                            <button @click="uploadFile" :disabled="isUploading" 
+                                    style="width: 100%; padding: 10px; background: rgba(255,255,255,0.3); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; cursor: pointer; font-weight: 600;">
+                                {{ isUploading ? '⏳ Uploading...' : '📤 Upload to Canvas' }}
+                            </button>
+                        </div>
+                        
+                        <div v-if="uploadStatus" :style="{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '6px', fontSize: '12px' }">
+                            <div :style="{ color: uploadStatus.success ? '#4ade80' : '#f87171' }">{{ uploadStatus.message }}</div>
+                        </div>
+                        
+                        <div style="font-size: 11px; opacity: 0.8; text-align: center; margin-top: 10px;">
+                            📄 Supported: PDF, DOC, TXT, Images, Videos, Presentations (Max 100MB)
+                        </div>
                     </div>
                     <div class="chat-box" ref="chatBox">
                         <div v-for="(message, index) in messages" :key="index" 
@@ -233,7 +346,17 @@
                     sessionId: null,
                     analytics: null,
                     showCourseDetails: false,
-                    courseDetails: null
+                    courseDetails: null,
+                    showFileUpload: false,
+                    selectedFile: null,
+                    uploadType: 'assignment',
+                    uploadCourseId: '',
+                    uploadItemName: '',
+                    uploadModuleId: '',
+                    uploadAssignmentId: '',
+                    isUploading: false,
+                    uploadStatus: null,
+                    showConversations: true
                 }
             },
             computed: {
@@ -254,32 +377,78 @@
                 }
             },
             async mounted() {
+                // Show loading state immediately
+                document.body.style.opacity = '0.7';
+                document.body.style.pointerEvents = 'none';
+                
                 if (!this.userRole || !this.username) {
                     window.location.href = '/canvas-login';
                     return;
                 }
-                await this.loadConversations();
-                await this.loadAnalytics();
+                
+                try {
+                    // Load data in parallel for faster loading
+                    await Promise.all([
+                        this.loadConversations(),
+                        this.loadAnalytics()
+                    ]);
+                } catch (error) {
+                    console.error('Failed to load dashboard data:', error);
+                } finally {
+                    // Hide loading state
+                    document.body.style.opacity = '1';
+                    document.body.style.pointerEvents = 'auto';
+                    document.body.style.transition = 'opacity 0.3s ease';
+                }
             },
             methods: {
                 async loadAnalytics() {
                     try {
-                        const response = await fetch(`/analytics?user_role=${this.userRole}&canvas_user_id=${this.canvasUserId}`);
-                        const data = await response.json();
-                        this.analytics = data.analytics;
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+                        
+                        const response = await fetch(`/analytics?user_role=${this.userRole}&canvas_user_id=${this.canvasUserId}`, {
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.analytics = data.analytics;
+                        }
                     } catch (error) {
-                        console.error('Failed to load analytics:', error);
+                        if (error.name !== 'AbortError') {
+                            console.error('Failed to load analytics:', error);
+                        }
+                        // Set default analytics on error
+                        this.analytics = { quick_actions: [] };
                     }
                 },
                 async loadConversations() {
                     try {
-                        const response = await fetch(`/conversations?canvas_user_id=${this.canvasUserId}`);
-                        const data = await response.json();
-                        this.conversations = data.conversations;
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+                        
+                        const response = await fetch(`/conversations?canvas_user_id=${this.canvasUserId}`, {
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.conversations = data.conversations;
+                        }
                     } catch (error) {
-                        console.error('Failed to load conversations:', error);
+                        if (error.name !== 'AbortError') {
+                            console.error('Failed to load conversations:', error);
+                        }
+                        // Set empty conversations on error
+                        this.conversations = [];
                     }
                 },
+
                 async newConversation() {
                     try {
                         const response = await fetch('/conversations', {
@@ -304,11 +473,43 @@
                         this.currentConversationId = conversationId;
                         const response = await fetch(`/conversations/${conversationId}/messages`);
                         const data = await response.json();
-                        this.messages = data.messages;
+                        this.messages = data.messages.map(msg => ({
+                            role: msg.role,
+                            content: msg.content,
+                            analytics: msg.analytics || null,
+                            timestamp: msg.created_at
+                        }));
                         this.showChat();
+                        this.$nextTick(() => this.scrollToBottom());
                     } catch (error) {
                         console.error('Failed to load conversation:', error);
                     }
+                },
+                async deleteConversation(conversationId) {
+                    if (!confirm('Delete this conversation?')) return;
+                    
+                    try {
+                        const response = await fetch(`/conversations/${conversationId}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            await this.loadConversations();
+                            if (this.currentConversationId === conversationId) {
+                                this.messages = [];
+                                this.currentConversationId = null;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to delete conversation:', error);
+                    }
+                },
+                clearCurrentChat() {
+                    if (!confirm('Clear current chat? This will start a new conversation.')) return;
+                    
+                    this.messages = [];
+                    this.currentConversationId = null;
+                    this.newConversation();
                 },
                 displayAnalyticsInChat() {
                     if (!this.analytics) return;
@@ -384,13 +585,29 @@
                         const data = await response.json();
                         if (data.session_id) this.sessionId = data.session_id;
                         
-                        // Add message with analytics
+                        // Add message with analytics and enhanced metadata
                         const assistantMessage = { 
                             role: 'assistant', 
                             content: data.content,
-                            analytics: data.analytics || null
+                            analytics: data.analytics || null,
+                            timestamp: new Date().toISOString(),
+                            tool_used: data.tool_used || false,
+                            inference_system: data.inference_system || null
                         };
                         this.messages.push(assistantMessage);
+                        
+                        // Update conversation title if it's a new conversation
+                        if (this.currentConversationId && this.conversations.length > 0) {
+                            const currentConv = this.conversations.find(c => c.id === this.currentConversationId);
+                            if (currentConv && currentConv.title === 'New Chat') {
+                                // Auto-generate title from first user message
+                                const firstUserMsg = this.messages.find(m => m.role === 'user');
+                                if (firstUserMsg) {
+                                    const newTitle = firstUserMsg.content.substring(0, 30) + (firstUserMsg.content.length > 30 ? '...' : '');
+                                    this.updateConversationTitle(this.currentConversationId, newTitle);
+                                }
+                            }
+                        }
                     } catch (error) {
                         this.messages.push({ role: 'assistant', content: 'Error: ' + error.message, analytics: null });
                     } finally {
@@ -449,6 +666,94 @@
                     if (action.prompt) {
                         this.userInput = action.prompt;
                         this.sendMessage();
+                    }
+                },
+                handleFileSelect(event) {
+                    this.selectedFile = event.target.files[0];
+                    this.uploadStatus = null;
+                },
+                async uploadFile() {
+                    if (!this.selectedFile) {
+                        this.uploadStatus = { success: false, message: 'Please select a file' };
+                        return;
+                    }
+                    
+                    if (!this.uploadCourseId || !this.uploadItemName) {
+                        this.uploadStatus = { success: false, message: 'Please fill in Course ID and Item Name' };
+                        return;
+                    }
+                    
+                    if (this.uploadType === 'module' && !this.uploadModuleId) {
+                        this.uploadStatus = { success: false, message: 'Please provide Module ID' };
+                        return;
+                    }
+                    
+                    if (this.uploadType === 'submission' && !this.uploadAssignmentId) {
+                        this.uploadStatus = { success: false, message: 'Please provide Assignment ID' };
+                        return;
+                    }
+                    
+                    this.isUploading = true;
+                    this.uploadStatus = { success: true, message: 'Uploading file...' };
+                    
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', this.selectedFile);
+                        formData.append('upload_type', this.uploadType);
+                        formData.append('course_id', this.uploadCourseId);
+                        formData.append('item_name', this.uploadItemName);
+                        
+                        if (this.uploadType === 'module') {
+                            formData.append('module_id', this.uploadModuleId);
+                        }
+                        
+                        if (this.uploadType === 'submission') {
+                            formData.append('assignment_id', this.uploadAssignmentId);
+                        }
+                        
+                        const response = await fetch('/upload-file', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            this.uploadStatus = { success: true, message: `✅ ${result.message}` };
+                            
+                            // Clear form
+                            this.$refs.fileInput.value = '';
+                            this.selectedFile = null;
+                            this.uploadItemName = '';
+                            this.uploadModuleId = '';
+                            this.uploadAssignmentId = '';
+                            
+                            // Add success message to chat
+                            this.messages.push({
+                                role: 'assistant',
+                                content: `File uploaded successfully! ${result.message}`,
+                                analytics: null
+                            });
+                        } else {
+                            this.uploadStatus = { success: false, message: `❌ ${result.error}` };
+                        }
+                        
+                    } catch (error) {
+                        this.uploadStatus = { success: false, message: `❌ Upload failed: ${error.message}` };
+                    } finally {
+                        this.isUploading = false;
+                    }
+                },
+                async updateConversationTitle(conversationId, title) {
+                    try {
+                        await fetch(`/conversations/${conversationId}/title`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: title })
+                        });
+                        await this.loadConversations();
+                    } catch (error) {
+                        console.error('Failed to update conversation title:', error);
                     }
                 },
                 logout() {
