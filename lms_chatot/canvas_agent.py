@@ -1,7 +1,7 @@
 from canvas_integration import CanvasLMS
 from inference_systems.inference_manager import InferenceManager
 from analytics_cache import analytics_cache
-from student_features import StudentFeatures
+from canvas_tools import CanvasTools
 
 class CanvasAgent:
     def __init__(self, canvas_url: str, canvas_token: str, user_id: int = None):
@@ -19,124 +19,11 @@ class CanvasAgent:
         if user_info:
             self.user_info = user_info
             
-        # Define Canvas tools (same for all inference systems)
-        tools = [
-            {
-                "name": "list_courses",
-                "description": "List courses for the user",
-                "input_schema": {"type": "object", "properties": {}}
-            },
-            {
-                "name": "create_course",
-                "description": "Create a new course",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string", "description": "Course name"},
-                        "course_code": {"type": "string", "description": "Course code"}
-                    },
-                    "required": ["name", "course_code"]
-                }
-            },
-            {
-                "name": "list_modules",
-                "description": "List modules in a course",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "course_id": {"type": "integer", "description": "Course ID"}
-                    },
-                    "required": ["course_id"]
-                }
-            },
-            {
-                "name": "create_assignment",
-                "description": "Create an assignment",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "course_id": {"type": "integer", "description": "Course ID"},
-                        "name": {"type": "string", "description": "Assignment name"},
-                        "points": {"type": "integer", "description": "Points (default 100)"}
-                    },
-                    "required": ["course_id", "name"]
-                }
-            },
-            {
-                "name": "create_user",
-                "description": "Create a new user (admin only)",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string", "description": "Full name"},
-                        "email": {"type": "string", "description": "Email address"},
-                        "login_id": {"type": "string", "description": "Login username"}
-                    },
-                    "required": ["name", "email", "login_id"]
-                }
-            },
-            {
-                "name": "enroll_user",
-                "description": "Enroll user in course",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "course_id": {"type": "integer", "description": "Course ID"},
-                        "user_id": {"type": "integer", "description": "User ID"},
-                        "role": {"type": "string", "description": "StudentEnrollment or TeacherEnrollment"}
-                    },
-                    "required": ["course_id", "user_id", "role"]
-                }
-            },
-            {
-                "name": "generate_learning_plan",
-                "description": "Generate personalized learning plan for student",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "course_id": {"type": "integer", "description": "Course ID"},
-                        "study_hours_per_week": {"type": "integer", "description": "Hours per week (default 10)"}
-                    },
-                    "required": ["course_id"]
-                }
-            },
-            {
-                "name": "get_progress_tracker",
-                "description": "Get learning progress across all courses",
-                "input_schema": {"type": "object", "properties": {}}
-            },
-            {
-                "name": "get_study_recommendations",
-                "description": "Get AI-powered study recommendations",
-                "input_schema": {"type": "object", "properties": {}}
-            },
-            {
-                "name": "get_assignment_prioritizer",
-                "description": "Smart assignment prioritization and scheduling",
-                "input_schema": {"type": "object", "properties": {}}
-            },
-            {
-                "name": "get_learning_analytics",
-                "description": "Personal learning analytics and insights",
-                "input_schema": {"type": "object", "properties": {}}
-            },
-            {
-                "name": "get_study_buddy_suggestions",
-                "description": "Find compatible study partners and groups",
-                "input_schema": {"type": "object", "properties": {}}
-            }
-        ]
+        # Get Canvas tools (universal for all inference systems)
+        tools = CanvasTools.get_tool_definitions(self.user_role)
         
-        # Filter tools by role
-        if self.user_role == "student":
-            # Students get Canvas tools + enhanced student features
-            student_tools = ["list_courses", "list_modules", "generate_learning_plan", 
-                           "get_progress_tracker", "get_study_recommendations", 
-                           "get_assignment_prioritizer", "get_learning_analytics", 
-                           "get_study_buddy_suggestions"]
-            tools = [t for t in tools if t["name"] in student_tools]
-        elif self.user_role not in ["admin", "teacher", "faculty", "instructor"]:
-            tools = [t for t in tools if t["name"] not in ["create_user", "enroll_user"]]
+        # Initialize Canvas tools handler
+        canvas_tools = CanvasTools(self.canvas, self.admin_canvas, self.user_role, self.user_info)
             
         system_prompt = f"""You are a Canvas LMS assistant. User role: {self.user_role or 'unknown'}.
 
@@ -162,7 +49,7 @@ For students, you have access to enhanced features:
             
             # Handle tool execution
             if result.get("needs_tool"):
-                tool_result = self._execute_tool(result["tool_name"], result["tool_args"])
+                tool_result = canvas_tools.execute_tool(result["tool_name"], result["tool_args"])
                 
                 # Get final response from inference system
                 if hasattr(self.inference_manager.active_system, 'get_final_response'):
@@ -196,84 +83,7 @@ For students, you have access to enhanced features:
         except Exception as e:
             return {"content": f"Error: {str(e)}", "tool_used": False}
     
-    def _execute_tool(self, function_name: str, arguments: dict):
-        """Execute Canvas tool (same for all inference systems)"""
-        try:
-            if function_name == "list_courses":
-                if self.user_role == "admin":
-                    courses = self.admin_canvas.list_account_courses()
-                else:
-                    courses = self.canvas.list_courses()
-                return {
-                    "total_courses": len(courses),
-                    "courses": [{"id": c.get("id"), "name": c.get("name"), "course_code": c.get("course_code")} for c in courses]
-                }
-                
-            elif function_name == "create_course":
-                result = self.admin_canvas.create_course(
-                    account_id=1,
-                    name=arguments["name"],
-                    course_code=arguments["course_code"]
-                )
-                return result
-                
-            elif function_name == "list_modules":
-                modules = self.canvas.list_modules(arguments["course_id"])
-                return modules
-                
-            elif function_name == "create_assignment":
-                result = self.canvas.create_assignment(
-                    course_id=arguments["course_id"],
-                    name=arguments["name"],
-                    points=arguments.get("points", 100)
-                )
-                return result
-                
-            elif function_name == "create_user":
-                result = self.admin_canvas.create_user(
-                    account_id=1,
-                    name=arguments["name"],
-                    email=arguments["email"],
-                    login_id=arguments["login_id"]
-                )
-                return result
-                
-            elif function_name == "enroll_user":
-                result = self.admin_canvas.enroll_user(
-                    course_id=arguments["course_id"],
-                    user_id=arguments["user_id"],
-                    role=arguments["role"]
-                )
-                return result
-            
-            # Student-specific enhanced features
-            elif function_name in ["generate_learning_plan", "get_progress_tracker", 
-                                 "get_study_recommendations", "get_assignment_prioritizer",
-                                 "get_learning_analytics", "get_study_buddy_suggestions"]:
-                student_features = StudentFeatures(self.canvas)
-                canvas_user_id = self.user_info.get('canvas_user_id') if self.user_info else None
-                
-                if function_name == "generate_learning_plan":
-                    return student_features.generate_learning_plan(
-                        arguments["course_id"], 
-                        arguments.get("study_hours_per_week", 10)
-                    )
-                elif function_name == "get_progress_tracker":
-                    return student_features.get_progress_tracker(canvas_user_id)
-                elif function_name == "get_study_recommendations":
-                    return student_features.get_study_recommendations(canvas_user_id)
-                elif function_name == "get_assignment_prioritizer":
-                    return student_features.get_assignment_prioritizer(canvas_user_id)
-                elif function_name == "get_learning_analytics":
-                    return student_features.get_learning_analytics(canvas_user_id)
-                elif function_name == "get_study_buddy_suggestions":
-                    return student_features.get_study_buddy_suggestions(canvas_user_id)
-                
-            else:
-                return {"error": f"Unknown function: {function_name}"}
-                
-        except Exception as e:
-            return {"error": str(e)}
+
     
     def _generate_chat_analytics(self):
         """Generate lightweight analytics for chat interface"""

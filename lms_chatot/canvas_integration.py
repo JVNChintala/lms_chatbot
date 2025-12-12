@@ -1,5 +1,6 @@
 import requests
 from typing import List, Dict, Optional
+from canvas_api_validator import CanvasAPIValidator
 
 class CanvasLMS:
     def __init__(self, base_url: str, access_token: str, as_user_id: int = None):
@@ -9,7 +10,7 @@ class CanvasLMS:
         print(f"[CanvasLMS] Initialized with as_user_id={as_user_id}")
     
     def list_courses(self, account_id: Optional[int] = None) -> List[Dict]:
-        """List all courses with pagination"""
+        """List all courses with pagination and error handling"""
         params = {"per_page": 100}
         
         if account_id:
@@ -20,29 +21,31 @@ class CanvasLMS:
             if self.as_user_id:
                 url = f"{self.base_url}/api/v1/users/{self.as_user_id}/courses"
                 params["include"] = ["total_scores", "current_grading_period_scores", "term"]
-
-                print(f"[CANVAS] Fetching courses for user {self.as_user_id}: {url}")
             else:
                 url = f"{self.base_url}/api/v1/courses"
-                print(f"[CANVAS] Fetching all courses: {url}")
         
         courses = []
         
-        while url:
-            print(f"[CANVAS] Making request to: {url} with params: {params}")
-            response = requests.get(url, headers=self.headers, params=params)
-            print(f"[CANVAS] Response status: {response.status_code}")
-            print(f"[CANVAS] Response headers: {dict(response.headers)}")
-            response.raise_for_status()
-            batch = response.json()
-            print(f"[CANVAS] Raw response batch: {batch}")
-            courses.extend(batch)
-            print(f"[CANVAS] Fetched {len(batch)} courses, total: {len(courses)}")
+        try:
+            while url:
+                response = requests.get(url, headers=self.headers, params=params)
+                result = CanvasAPIValidator.validate_response(response, "list_courses")
+                
+                if not result["success"]:
+                    print(f"[CANVAS] Error: {result['error']}")
+                    return []
+                
+                batch = result["data"]
+                courses.extend(batch)
+                
+                url = response.links.get('next', {}).get('url')
+                params = None
             
-            url = response.links.get('next', {}).get('url')
-            params = None
-        
-        return courses
+            return courses
+            
+        except Exception as e:
+            print(f"[CANVAS] Exception in list_courses: {str(e)}")
+            return []
     
     def get_course(self, course_id: int) -> Dict:
         """Get a specific course by ID"""
@@ -52,7 +55,7 @@ class CanvasLMS:
         return response.json()
     
     def create_course(self, account_id: int, name: str, course_code: str, **kwargs) -> Dict:
-        """Create a new course (requires admin permissions)"""
+        """Create a new course with error handling"""
         url = f"{self.base_url}/api/v1/accounts/{account_id}/courses"
         data = {
             "course[name]": name,
@@ -60,16 +63,28 @@ class CanvasLMS:
         }
         for key, value in kwargs.items():
             data[f"course[{key}]"] = value
-        response = requests.post(url, headers=self.headers, data=data)
-        response.raise_for_status()
-        return response.json()
+            
+        try:
+            response = requests.post(url, headers=self.headers, data=data)
+            result = CanvasAPIValidator.validate_response(response, "create_course")
+            return CanvasAPIValidator.format_tool_response(result, "create_course")
+        except Exception as e:
+            return {"error": f"Failed to create course: {str(e)}"}
     
     def list_modules(self, course_id: int) -> List[Dict]:
-        """List all modules in a course"""
+        """List all modules in a course with error handling"""
         url = f"{self.base_url}/api/v1/courses/{course_id}/modules"
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            result = CanvasAPIValidator.validate_response(response, "list_modules")
+            
+            if result["success"]:
+                return result["data"]
+            else:
+                return [{"error": result["error"]}]
+        except Exception as e:
+            return [{"error": f"Failed to list modules: {str(e)}"}]
     
     def create_module(self, course_id: int, name: str, **kwargs) -> Dict:
         """Create a new module in a course"""
