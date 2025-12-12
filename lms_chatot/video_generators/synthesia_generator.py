@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+from typing import Dict, List, Any
 from .base_video_generator import BaseVideoGenerator
 
 class SynthesiaGenerator(BaseVideoGenerator):
