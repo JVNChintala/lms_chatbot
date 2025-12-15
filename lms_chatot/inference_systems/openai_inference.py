@@ -13,17 +13,13 @@ class OpenAIInference(BaseInference):
         api_key = os.getenv('OPENAI_API_KEY')
         if api_key:
             try:
-                self.client = OpenAI(api_key=api_key)
+                # Set environment variable and use default initialization
+                os.environ['OPENAI_API_KEY'] = api_key
+                self.client = OpenAI()
                 print(f"[OpenAI] Client initialized successfully")
             except Exception as e:
                 print(f"[OpenAI] Failed to initialize client: {e}")
-                try:
-                    # Fallback initialization without extra parameters
-                    self.client = OpenAI()
-                    print(f"[OpenAI] Fallback client initialized")
-                except Exception as e2:
-                    print(f"[OpenAI] Fallback initialization failed: {e2}")
-                    self.client = None
+                self.client = None
     
     def is_available(self) -> bool:
         return bool(os.getenv('OPENAI_API_KEY')) and self.client is not None
@@ -66,6 +62,11 @@ class OpenAIInference(BaseInference):
             
             message = response.choices[0].message
             
+            # Extract token usage
+            usage = response.usage
+            input_tokens = usage.prompt_tokens if usage else 0
+            output_tokens = usage.completion_tokens if usage else 0
+            
             # Handle tool calls
             if message.tool_calls:
                 return {
@@ -73,13 +74,25 @@ class OpenAIInference(BaseInference):
                     "tool_name": message.tool_calls[0].function.name,
                     "tool_args": json.loads(message.tool_calls[0].function.arguments),
                     "tool_call_id": message.tool_calls[0].id,
-                    "assistant_message": message
+                    "assistant_message": message,
+                    "usage": {
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "total_tokens": input_tokens + output_tokens,
+                        "model": ModelConfig.OPENAI_MODEL
+                    }
                 }
             
             # No tool use
             return {
                 "needs_tool": False,
-                "content": message.content
+                "content": message.content,
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "total_tokens": input_tokens + output_tokens,
+                    "model": ModelConfig.OPENAI_MODEL
+                }
             }
             
         except Exception as e:
@@ -121,7 +134,19 @@ class OpenAIInference(BaseInference):
                 timeout=30
             )
             
+            # Store additional usage for final response
+            if hasattr(final_response, 'usage') and final_response.usage:
+                self._additional_usage = {
+                    "input_tokens": final_response.usage.prompt_tokens,
+                    "output_tokens": final_response.usage.completion_tokens,
+                    "total_tokens": final_response.usage.total_tokens
+                }
+            
             return final_response.choices[0].message.content
             
         except Exception as e:
             return f"Canvas operation completed successfully. Tool result: {tool_result}"
+    
+    def get_additional_usage(self):
+        """Get additional usage from final response"""
+        return getattr(self, '_additional_usage', None)

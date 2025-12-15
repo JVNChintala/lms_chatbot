@@ -23,6 +23,7 @@ from canvas_integration import CanvasLMS
 from conversation_db import conversation_db
 from dashboard_widgets import DashboardWidgets
 from conversations_db import conversations_db
+from usage_tracker import usage_tracker
 
 
 load_dotenv()
@@ -331,6 +332,15 @@ async def update_conversation_title(conversation_id: int, request: dict):
         title = request.get("title", "Untitled")
         conversations_db.update_conversation_title(conversation_id, title)
         return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/usage-stats")
+async def get_usage_stats(canvas_user_id: Optional[int] = None, days: int = 30):
+    """Get AI model usage statistics"""
+    try:
+        stats = usage_tracker.get_usage_stats(canvas_user_id, days)
+        return {"usage_stats": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

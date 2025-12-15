@@ -2,6 +2,7 @@ from canvas_integration import CanvasLMS
 from inference_systems.inference_manager import InferenceManager
 from analytics_cache import analytics_cache
 from canvas_tools import CanvasTools
+from usage_tracker import usage_tracker
 
 class CanvasAgent:
     def __init__(self, canvas_url: str, canvas_token: str, user_id: int = None):
@@ -59,6 +60,9 @@ For students, you have access to enhanced features:
                 else:
                     final_content = f"Executed {result['tool_name']}: {tool_result}"
                 
+                # Track usage with tool execution
+                self._track_usage(result, True, result["tool_name"])
+                
                 # Generate dynamic analytics for chat
                 chat_analytics = self._generate_chat_analytics()
                 
@@ -69,6 +73,9 @@ For students, you have access to enhanced features:
                     "inference_system": result.get("inference_system"),
                     "analytics": chat_analytics
                 }
+            
+            # Track usage without tool execution
+            self._track_usage(result, False)
             
             # Generate dynamic analytics for chat
             chat_analytics = self._generate_chat_analytics()
@@ -112,6 +119,25 @@ For students, you have access to enhanced features:
             return analytics
         except Exception as e:
             return {"error": str(e), "quick_actions": []}
+    
+    def _track_usage(self, result: dict, tool_used: bool, tool_name: str = None):
+        """Track AI model usage and tokens"""
+        try:
+            usage_data = result.get("usage", {})
+            canvas_user_id = self.user_info.get('canvas_user_id') if self.user_info else 0
+            
+            usage_tracker.log_usage(
+                user_id=canvas_user_id,
+                user_role=self.user_role or "unknown",
+                inference_system=result.get("inference_system", "unknown"),
+                model_name=usage_data.get("model", "unknown"),
+                input_tokens=usage_data.get("input_tokens", 0),
+                output_tokens=usage_data.get("output_tokens", 0),
+                tool_used=tool_used,
+                tool_name=tool_name
+            )
+        except Exception as e:
+            print(f"[USAGE] Failed to track usage: {e}")
     
     def get_inference_status(self):
         """Get status of inference systems"""
