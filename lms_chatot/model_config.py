@@ -4,7 +4,7 @@ class ModelConfig:
     """Centralized model configuration"""
     
     # OpenAI Models
-    OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
+    OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
     
     # Google Gemini Models
     GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')

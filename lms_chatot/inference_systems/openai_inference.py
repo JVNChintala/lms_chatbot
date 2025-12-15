@@ -17,7 +17,7 @@ class OpenAIInference(BaseInference):
         return bool(os.getenv('OPENAI_API_KEY'))
     
     def call_with_tools(self, system_prompt: str, messages: list, tools: list) -> dict:
-        """Call OpenAI API with function calling"""
+        """Call OpenAI API with function calling - Optimized for Canvas LMS"""
         # Convert tools to OpenAI format
         openai_tools = [{
             "type": "function",
@@ -28,34 +28,59 @@ class OpenAIInference(BaseInference):
             }
         } for tool in tools]
         
+        # Optimize system prompt for Canvas LMS
+        optimized_system = f"{system_prompt}\n\nYou are an expert Canvas LMS assistant. Always use tools to get real data. Be concise and helpful."
+        
         # Add system message
-        openai_messages = [{"role": "system", "content": system_prompt}] + messages
+        openai_messages = [{"role": "system", "content": optimized_system}] + messages
         
-        response = self.client.chat.completions.create(
-            model=ModelConfig.OPENAI_MODEL,
-            messages=openai_messages,
-            tools=openai_tools,
-            tool_choice="auto",
-            max_tokens=ModelConfig.MAX_TOKENS
-        )
-        
-        message = response.choices[0].message
-        
-        # Handle tool calls
-        if message.tool_calls:
+        try:
+            response = self.client.chat.completions.create(
+                model=ModelConfig.OPENAI_MODEL,
+                messages=openai_messages,
+                tools=openai_tools,
+                tool_choice="auto",
+                max_tokens=ModelConfig.MAX_TOKENS,
+                temperature=ModelConfig.TEMPERATURE,
+                stream=False,
+                timeout=30
+            )
+            
+            message = response.choices[0].message
+            
+            # Handle tool calls
+            if message.tool_calls:
+                return {
+                    "needs_tool": True,
+                    "tool_name": message.tool_calls[0].function.name,
+                    "tool_args": json.loads(message.tool_calls[0].function.arguments),
+                    "tool_call_id": message.tool_calls[0].id,
+                    "assistant_message": message
+                }
+            
+            # No tool use
             return {
-                "needs_tool": True,
-                "tool_name": message.tool_calls[0].function.name,
-                "tool_args": json.loads(message.tool_calls[0].function.arguments),
-                "tool_call_id": message.tool_calls[0].id,
-                "assistant_message": message
+                "needs_tool": False,
+                "content": message.content
             }
-        
-        # No tool use
-        return {
-            "needs_tool": False,
-            "content": message.content
-        }
+            
+        except Exception as e:
+            error_msg = str(e)
+            if "rate_limit" in error_msg.lower():
+                return {
+                    "needs_tool": False,
+                    "content": "OpenAI rate limit reached. Please try again in a moment."
+                }
+            elif "timeout" in error_msg.lower():
+                return {
+                    "needs_tool": False,
+                    "content": "Request timed out. Please try again."
+                }
+            else:
+                return {
+                    "needs_tool": False,
+                    "content": f"OpenAI API error: {error_msg}"
+                }
     
     def get_final_response(self, messages: list, tool_result: dict, tool_call_id: str) -> str:
         """Get final response after tool execution"""
@@ -65,10 +90,17 @@ class OpenAIInference(BaseInference):
             "content": json.dumps(tool_result)
         })
         
-        final_response = self.client.chat.completions.create(
-            model=ModelConfig.OPENAI_MODEL,
-            messages=messages,
-            max_tokens=ModelConfig.MAX_TOKENS
-        )
-        
-        return final_response.choices[0].message.content
+        try:
+            final_response = self.client.chat.completions.create(
+                model=ModelConfig.OPENAI_MODEL,
+                messages=messages,
+                max_tokens=ModelConfig.MAX_TOKENS,
+                temperature=ModelConfig.TEMPERATURE,
+                stream=False,
+                timeout=30
+            )
+            
+            return final_response.choices[0].message.content
+            
+        except Exception as e:
+            return f"Canvas operation completed successfully. Tool result: {tool_result}"

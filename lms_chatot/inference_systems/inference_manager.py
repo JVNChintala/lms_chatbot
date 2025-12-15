@@ -8,9 +8,9 @@ class InferenceManager:
     
     def __init__(self):
         self.systems = [
-            OpenAIInference(),
-            BedrockInference(),
-            GeminiInference()
+            OpenAIInference(),  # Default - fastest and most reliable
+            GeminiInference(),  # Secondary - good fallback
+            BedrockInference()  # Tertiary - enterprise option
         ]
         self.active_system = self._get_active_system()
     
@@ -28,7 +28,7 @@ class InferenceManager:
     def call_with_tools(self, system_prompt: str, messages: List[Dict], tools: List[Dict]) -> Dict[str, Any]:
         """Call the active inference system with tools"""
         if not self.active_system:
-            return {"content": "No AI inference system configured. Please set OPENAI_API_KEY or AWS credentials.", "tool_used": False}
+            return {"content": "No AI inference system configured. Please set OPENAI_API_KEY (recommended) for best performance.", "tool_used": False}
         
         try:
             result = self.active_system.call_with_tools(system_prompt, messages, tools)
