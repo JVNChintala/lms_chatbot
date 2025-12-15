@@ -10,11 +10,23 @@ class OpenAIInference(BaseInference):
     def __init__(self):
         super().__init__()
         self.client = None
-        if self.is_available():
-            self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        api_key = os.getenv('OPENAI_API_KEY')
+        if api_key:
+            try:
+                self.client = OpenAI(api_key=api_key)
+                print(f"[OpenAI] Client initialized successfully")
+            except Exception as e:
+                print(f"[OpenAI] Failed to initialize client: {e}")
+                try:
+                    # Fallback initialization without extra parameters
+                    self.client = OpenAI()
+                    print(f"[OpenAI] Fallback client initialized")
+                except Exception as e2:
+                    print(f"[OpenAI] Fallback initialization failed: {e2}")
+                    self.client = None
     
     def is_available(self) -> bool:
-        return bool(os.getenv('OPENAI_API_KEY'))
+        return bool(os.getenv('OPENAI_API_KEY')) and self.client is not None
     
     def call_with_tools(self, system_prompt: str, messages: list, tools: list) -> dict:
         """Call OpenAI API with function calling - Optimized for Canvas LMS"""
@@ -33,6 +45,12 @@ class OpenAIInference(BaseInference):
         
         # Add system message
         openai_messages = [{"role": "system", "content": optimized_system}] + messages
+        
+        if not self.client:
+            return {
+                "needs_tool": False,
+                "content": "OpenAI client not available. Please check your API key and try again."
+            }
         
         try:
             response = self.client.chat.completions.create(
@@ -89,6 +107,9 @@ class OpenAIInference(BaseInference):
             "tool_call_id": tool_call_id,
             "content": json.dumps(tool_result)
         })
+        
+        if not self.client:
+            return f"Canvas operation completed successfully. Tool result: {tool_result}"
         
         try:
             final_response = self.client.chat.completions.create(

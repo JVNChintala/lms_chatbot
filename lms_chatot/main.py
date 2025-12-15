@@ -251,7 +251,19 @@ async def demo_login(request: LoginRequest):
                 import traceback
                 traceback.print_exc()
     else:
-        print("Canvas URL or token not configured")
+        print("Canvas URL or token not configured - using demo mode")
+        # Create demo user when Canvas is not configured
+        if '@' in request.username:  # Email format suggests real user
+            # Determine role from email or default to teacher
+            role = "teacher" if "teacher" in request.username.lower() else "student"
+            canvas_user_id = hash(request.username) % 10000  # Generate consistent ID
+            
+            # Add to demo store
+            user_store.add_user(request.username, request.password, role, canvas_user_id)
+            
+            token = create_demo_token(request.username, role)
+            print(f"Created demo user: {request.username} as {role}")
+            return {"token": token, "role": role, "username": request.username, "canvas_user_id": canvas_user_id}
     
     print(f"Login failed for: {request.username}")
     raise HTTPException(status_code=401, detail="Invalid credentials")
