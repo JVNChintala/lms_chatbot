@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from litellm import completion
+from inference_systems.openai_inference import OpenAIInference
 import os
 import sys
 import requests
@@ -103,25 +103,27 @@ async def inference(request: InferenceRequest):
             
             return {"content": result["content"], "model": request.model, "usage": {}, "session_id": session_id}
         else:
-            # Fallback to direct OpenAI with conversational system prompt
-            conversational_messages = [{
-                "role": "system", 
-                "content": "You are a friendly and helpful Canvas LMS assistant. Respond in a conversational, natural way. Be warm, approachable, and avoid technical jargon. Help users with their Canvas questions in a friendly manner."
-            }] + request.messages
-            
-            response = completion(
-                model=request.model,
-                messages=conversational_messages,
-                temperature=0.7,
-                max_tokens=request.max_tokens
-            )
-            
-            return {
-                "content": response.choices[0].message.content,
-                "model": response.model,
-                "usage": response.usage.dict(),
-                "session_id": session_id
-            }
+            # Fallback to OpenAI inference
+            openai_inference = OpenAIInference(use_multi_model=False)
+            if openai_inference.is_available():
+                result = openai_inference.call_with_tools(
+                    "You are a friendly Canvas LMS assistant.",
+                    request.messages,
+                    []
+                )
+                return {
+                    "content": result.get("content", "Canvas LMS assistant ready."),
+                    "model": request.model,
+                    "usage": result.get("usage", {}),
+                    "session_id": session_id
+                }
+            else:
+                return {
+                    "content": "Canvas LMS assistant is currently unavailable.",
+                    "model": request.model,
+                    "usage": {},
+                    "session_id": session_id
+                }
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
