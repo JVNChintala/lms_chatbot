@@ -14,9 +14,9 @@ class CanvasAgent:
         self.user_role = None
         self.user_info = None
         
-        # Use multi-model inference system
-        from inference_systems.multi_model_inference import MultiModelInference
-        self.inference_system = MultiModelInference()
+        # Use OpenAI inference system
+        from inference_systems.openai_inference import OpenAIInference
+        self.inference_system = OpenAIInference()
         
     def process_message(self, user_message: str, conversation_history: list, user_role: str = None, user_info: dict = None) -> dict:
         if user_role:
