@@ -5,6 +5,9 @@ import traceback
 import time
 from openai import OpenAI
 from litellm import completion
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class OpenAICanvasAgent:
     def __init__(self, canvas_url: str, canvas_token: str, user_id: int = None):

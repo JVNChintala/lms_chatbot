@@ -48,9 +48,6 @@ class InferenceRequest(BaseModel):
 @app.post("/inference")
 async def inference(request: InferenceRequest):
     try:
-        canvas_url = os.getenv("CANVAS_URL", "")
-        canvas_token = os.getenv("CANVAS_TOKEN", "")
-        
         session_id = request.session_id
         if not session_id:
             session_id = session_manager.create_session(request.user_role)
@@ -64,33 +61,27 @@ async def inference(request: InferenceRequest):
         if request.user_role:
             session_manager.set_role(session_id, request.user_role)
         
+        # Use Canvas Agent with OpenAI inference for conversational responses
+        canvas_url = os.getenv("CANVAS_URL", "")
+        canvas_token = os.getenv("CANVAS_TOKEN", "")
+        
         if canvas_url and canvas_token:
-            # Get user's Canvas ID - either from request (real Canvas embed) or user store (demo)
             canvas_user_id = request.canvas_user_id
-            user_info = {}
-            
-            print(f"[INFERENCE] Initial canvas_user_id from request: {canvas_user_id}")
-            print(f"[INFERENCE] User role: {user_role}")
             
             if not canvas_user_id:
-                print(f"[INFERENCE] No canvas_user_id in request, checking user_store...")
-                # Find user by role in user_store as fallback
                 for username, user_data in user_store.users.items():
                     if user_data.get("role") == user_role:
                         canvas_user_id = user_data.get("canvas_user_id")
-                        print(f"[INFERENCE] Found user {username} with canvas_user_id: {canvas_user_id}")
+                        print(f"[MAIN] Found user {username}: canvas_user_id={canvas_user_id}, role={user_role}")
                         break
             
-            user_info = {"canvas_user_id": canvas_user_id}
+            user_info = {
+                "canvas_user_id": canvas_user_id,
+                "role": user_role
+            }
             
-            print(f"[INFERENCE] Final canvas_user_id: {canvas_user_id}")
-            
-            # For admin, don't use as_user_id; for others, use their canvas_user_id
-            print(f"User role: {user_role}, Canvas user ID: {canvas_user_id}")
-            
-            # Save to conversations DB if canvas_user_id exists
+            # Save user message to conversations DB
             if canvas_user_id:
-                # Create or get conversation
                 if not hasattr(request, 'conversation_id') or not request.conversation_id:
                     conv_id = conversations_db.create_conversation(canvas_user_id, "New Chat")
                 else:
@@ -98,7 +89,12 @@ async def inference(request: InferenceRequest):
                 
                 conversations_db.add_message(conv_id, "user", request.messages[-1]["content"])
             
-            agent = CanvasAgent(canvas_url, canvas_token, canvas_user_id if user_role != "admin" else None)
+            # Use Canvas Agent with proper user context
+            agent = CanvasAgent(
+                canvas_url, 
+                canvas_token,
+                canvas_user_id if user_role != "admin" else None
+            )
             result = agent.process_message(request.messages[-1]["content"], request.messages[:-1], user_role, user_info)
             
             # Save assistant response
@@ -107,20 +103,18 @@ async def inference(request: InferenceRequest):
             
             return {"content": result["content"], "model": request.model, "usage": {}, "session_id": session_id}
         else:
-            print("\n" + "="*80)
-            print("[MAIN.PY] Using direct LiteLLM completion (no Canvas integration)")
-            print(f"Model requested: {request.model}")
-            print(f"OPENAI_API_KEY: {os.getenv('OPENAI_API_KEY', 'NOT SET')[:20]}..." if os.getenv('OPENAI_API_KEY') else "OPENAI_API_KEY: NOT SET")
-            print("="*80 + "\n")
+            # Fallback to direct OpenAI with conversational system prompt
+            conversational_messages = [{
+                "role": "system", 
+                "content": "You are a friendly and helpful Canvas LMS assistant. Respond in a conversational, natural way. Be warm, approachable, and avoid technical jargon. Help users with their Canvas questions in a friendly manner."
+            }] + request.messages
             
             response = completion(
                 model=request.model,
-                messages=request.messages,
-                temperature=request.temperature,
+                messages=conversational_messages,
+                temperature=0.7,
                 max_tokens=request.max_tokens
             )
-            
-            print(f"\n[MAIN.PY] Response model used: {response.model}\n")
             
             return {
                 "content": response.choices[0].message.content,
@@ -140,13 +134,13 @@ async def health():
 
 @app.get("/performance")
 async def get_performance_stats():
-    """Get AWS Bedrock Agent performance statistics"""
+    """Get OpenAI API performance statistics"""
     try:
         return {
             "performance": {
-                "status": "AWS Bedrock agent active",
-                "type": "Claude 3 Sonnet with Canvas tools",
-                "dependencies": "AWS Bedrock, Claude 3 Sonnet",
+                "status": "OpenAI API active",
+                "type": "GPT models via LiteLLM",
+                "dependencies": "OpenAI API, LiteLLM",
                 "memory_usage": "Minimal"
             }
         }
@@ -243,7 +237,7 @@ async def demo_login(request: LoginRequest):
                 user_canvas_token = create_user_access_token(canvas_url, canvas_token, canvas_user['id'])
                 
                 # Register in demo store for future logins
-                user_store.add_user(request.username, request.password, role, canvas_user['id'], user_canvas_token)
+                user_store.add_user(request.username, request.password, role, canvas_user['id'])
                 
                 token = create_demo_token(request.username, role)
                 return {"token": token, "role": role, "username": request.username, "canvas_user_id": canvas_user['id']}

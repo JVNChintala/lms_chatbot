@@ -5,6 +5,9 @@ import traceback
 import re
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import torch
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class HuggingFaceCanvasAgent:
     def __init__(self, canvas_url: str, canvas_token: str, user_id: int = None):

@@ -3,6 +3,9 @@ from fastapi.responses import JSONResponse
 from file_manager import get_file_manager
 from canvas_integration import CanvasLMS
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 router = APIRouter()
 

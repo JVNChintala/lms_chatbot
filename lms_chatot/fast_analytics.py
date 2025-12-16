@@ -1,7 +1,10 @@
 import os
 from fastapi import APIRouter
+from dotenv import load_dotenv
 from analytics_cache import analytics_cache
 from canvas_integration import CanvasLMS
+
+load_dotenv()
 
 router = APIRouter()
 

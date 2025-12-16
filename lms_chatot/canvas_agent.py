@@ -5,14 +5,18 @@ from canvas_tools import CanvasTools
 from usage_tracker import usage_tracker
 
 class CanvasAgent:
-    def __init__(self, canvas_url: str, canvas_token: str, user_id: int = None):
-        self.canvas = CanvasLMS(canvas_url, canvas_token, as_user_id=user_id)
-        self.admin_canvas = CanvasLMS(canvas_url, canvas_token)
+    def __init__(self, canvas_url: str, admin_canvas_token: str, user_id: int = None):
+        self.admin_canvas = CanvasLMS(canvas_url, admin_canvas_token)
+        self.canvas = CanvasLMS(canvas_url, admin_canvas_token, as_user_id=user_id)
+        
+        print(f"[CANVAS_AGENT] Using admin token with as_user_id={user_id}")
+        
         self.user_role = None
         self.user_info = None
         
-        # Initialize plug-and-play inference manager
-        self.inference_manager = InferenceManager()
+        # Force OpenAI inference for conversational responses
+        from inference_systems.openai_inference import OpenAIInference
+        self.inference_system = OpenAIInference()
         
     def process_message(self, user_message: str, conversation_history: list, user_role: str = None, user_info: dict = None) -> dict:
         if user_role:
@@ -26,39 +30,40 @@ class CanvasAgent:
         # Initialize Canvas tools handler
         canvas_tools = CanvasTools(self.canvas, self.admin_canvas, self.user_role, self.user_info)
             
-        system_prompt = f"""You are a Canvas LMS assistant. User role: {self.user_role or 'unknown'}.
+        system_prompt = f"""You are a Canvas LMS assistant for a {self.user_role or 'user'}. 
 
 Rules:
-1. Always use tools to get real Canvas data
-2. Never make up course IDs or data
-3. Be helpful and conversational
-4. If user asks about courses, call list_courses first
+- Always use tools to get real Canvas data
+- Never make up course names or IDs
+- Be helpful and contextually aware
+- Provide clear, informative responses
+- When operations succeed, confirm what was accomplished
+- When users ask vague questions, use context from previous operations
 
-For students, you have access to enhanced features:
-- Learning Plan Generator
-- Progress Tracker
-- Study Recommendations
-- Assignment Prioritizer
-- Learning Analytics
-- Study Buddy Suggestions"""
+For students: You can help with learning plans, progress tracking, study tips, and assignment prioritization."""
         
         messages = [{"role": "user", "content": user_message}]
         
         try:
-            # Call inference manager (automatically selects best available system)
-            result = self.inference_manager.call_with_tools(system_prompt, messages, tools)
+            # Use OpenAI for conversational responses
+            result = self.inference_system.call_with_tools(system_prompt, messages, tools)
             
             # Handle tool execution
             if result.get("needs_tool"):
                 tool_result = canvas_tools.execute_tool(result["tool_name"], result["tool_args"])
                 
-                # Get final response from inference system
-                if hasattr(self.inference_manager.active_system, 'get_final_response'):
-                    final_content = self.inference_manager.get_final_response(
-                        messages, tool_result, result.get("tool_call_id") or result.get("tool_use_id") or result.get("response_text")
-                    )
+                # Get conversational final response from OpenAI
+                if hasattr(self.inference_system, 'get_final_response'):
+                    try:
+                        final_content = self.inference_system.get_final_response(
+                            messages, tool_result, result.get("tool_call_id")
+                        )
+                    except Exception as e:
+                        print(f"[CANVAS_AGENT] Final response error: {e}")
+                        # Fallback to direct result formatting
+                        final_content = self._format_tool_result(result["tool_name"], tool_result)
                 else:
-                    final_content = f"Executed {result['tool_name']}: {tool_result}"
+                    final_content = self._format_tool_result(result["tool_name"], tool_result)
                 
                 # Track usage with tool execution
                 self._track_usage(result, True, result["tool_name"])
@@ -139,6 +144,32 @@ For students, you have access to enhanced features:
         except Exception as e:
             print(f"[USAGE] Failed to track usage: {e}")
     
+    def _format_tool_result(self, tool_name: str, tool_result: dict) -> str:
+        """Format tool results for contextual display"""
+        if tool_name == "list_courses":
+            courses = tool_result.get("courses", [])
+            if courses:
+                course_list = "\n".join([f"- {c.get('name', 'Unknown')} (ID: {c.get('id', 'N/A')})" for c in courses])
+                return f"Found {len(courses)} courses:\n{course_list}"
+            else:
+                return "No courses found."
+        elif tool_name == "create_course":
+            if "error" in tool_result:
+                return f"Course creation failed: {tool_result['error']}"
+            else:
+                course_name = tool_result.get('name', 'Unknown')
+                course_id = tool_result.get('id', 'N/A')
+                return f"Course '{course_name}' created successfully with ID {course_id}. The course is currently unpublished."
+        elif tool_name == "create_module":
+            if "error" in tool_result:
+                return f"Module creation failed: {tool_result['error']}"
+            else:
+                return f"Module '{tool_result.get('name', 'Unknown')}' created successfully."
+        elif "error" in tool_result:
+            return f"Error: {tool_result['error']}"
+        else:
+            return f"Operation completed successfully."
+    
     def get_inference_status(self):
         """Get status of inference systems"""
-        return self.inference_manager.get_status()
+        return {"active_system": "OpenAI", "status": "available"}

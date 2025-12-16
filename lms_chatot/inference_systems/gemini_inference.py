@@ -1,8 +1,11 @@
 import os
 import json
 import google.generativeai as genai
+from dotenv import load_dotenv
 from .base_inference import BaseInference
 from model_config import ModelConfig
+
+load_dotenv()
 
 class GeminiInference(BaseInference):
     """Google Gemini inference system"""

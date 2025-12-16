@@ -2,6 +2,10 @@ import requests
 from typing import Optional, Dict
 import jwt
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class CanvasAuth:
     def __init__(self, canvas_url: str):

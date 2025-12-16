@@ -2,7 +2,10 @@ import os
 import requests
 import json
 from typing import Dict, List, Any
+from dotenv import load_dotenv
 from .base_video_generator import BaseVideoGenerator
+
+load_dotenv()
 
 class SynthesiaGenerator(BaseVideoGenerator):
     """Synthesia AI video generator (Open Source alternative: D-ID, Runway ML)"""

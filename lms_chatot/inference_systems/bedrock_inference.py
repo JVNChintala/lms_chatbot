@@ -1,8 +1,11 @@
 import os
 import json
 import boto3
+from dotenv import load_dotenv
 from .base_inference import BaseInference
 from model_config import ModelConfig
+
+load_dotenv()
 
 class BedrockInference(BaseInference):
     """AWS Bedrock Claude 3 Sonnet inference system"""

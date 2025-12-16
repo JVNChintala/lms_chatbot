@@ -2,7 +2,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import os
+from dotenv import load_dotenv
 from canvas_integration import CanvasLMS
+
+load_dotenv()
 
 router = APIRouter(prefix="/canvas", tags=["Canvas LMS"])
 

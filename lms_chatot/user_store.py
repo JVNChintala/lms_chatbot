@@ -4,15 +4,14 @@ class UserStore:
     """Store demo users created through Canvas API"""
     def __init__(self):
         self.users: Dict[str, dict] = {
-            "admin": {"password": "admin123", "role": "admin", "canvas_user_id": None, "canvas_token": None}
+            "admin": {"password": "admin123", "role": "admin", "canvas_user_id": None}
         }
     
-    def add_user(self, login_id: str, password: str, role: str, canvas_user_id: int, canvas_token: str = None):
+    def add_user(self, login_id: str, password: str, role: str, canvas_user_id: int):
         self.users[login_id] = {
             "password": password,
             "role": role,
-            "canvas_user_id": canvas_user_id,
-            "canvas_token": canvas_token
+            "canvas_user_id": canvas_user_id
         }
     
     def authenticate(self, login_id: str, password: str) -> Optional[dict]:
@@ -21,8 +20,7 @@ class UserStore:
             return {
                 "login_id": login_id, 
                 "role": user["role"], 
-                "canvas_user_id": user["canvas_user_id"],
-                "canvas_token": user.get("canvas_token")
+                "canvas_user_id": user["canvas_user_id"]
             }
         return None
     
