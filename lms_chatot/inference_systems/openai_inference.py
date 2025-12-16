@@ -39,8 +39,8 @@ class OpenAIInference(BaseInference):
             }
         } for tool in tools]
         
-        # Create contextual system prompt
-        contextual_system = f"{system_prompt}\n\nBe helpful and contextually aware. When users refer to 'recent course' or similar, use context from the conversation. Ask for clarification when needed."
+        # Create enhanced contextual system prompt
+        contextual_system = f"{system_prompt}\n\nIMPORTANT CONTEXT RULES:\n1. Analyze conversation history to understand user intent\n2. If user mentions topic names after course operations, they likely want to create content for that course\n3. 'Recent course' refers to the last mentioned course\n4. Be creative and provide helpful suggestions\n5. When unclear, ask specific clarifying questions based on context"
         
         # Add system message with full conversation history
         openai_messages = [{"role": "system", "content": contextual_system}] + messages
@@ -58,7 +58,7 @@ class OpenAIInference(BaseInference):
                 tools=openai_tools,
                 tool_choice="auto",
                 max_tokens=ModelConfig.MAX_TOKENS,
-                temperature=ModelConfig.TEMPERATURE,
+                temperature=0.3,  # Increased for creativity
                 stream=False,
                 timeout=30
             )
@@ -129,17 +129,17 @@ class OpenAIInference(BaseInference):
             return f"Perfect! I've completed that for you. 😊 Here's what I found: {tool_result}"
         
         try:
-            # Add instruction for contextual response from tool results
+            # Add enhanced instruction for contextual response
             messages.append({
                 "role": "system",
-                "content": f"Based on the tool results and conversation context, provide a helpful response. If a course was just created, mention its details. If user asks about 'recent course', refer to the most recently created one. Be informative and contextually aware. Tool results: {json.dumps(tool_result)}"
+                "content": f"Provide a creative, contextual response based on the tool results. Be engaging and suggest next steps. If a course was created, offer to add modules or content. If modules were listed, suggest creating assignments. Be helpful and conversational. Tool results: {json.dumps(tool_result)}"
             })
             
             final_response = self.client.chat.completions.create(
                 model=ModelConfig.OPENAI_MODEL,
                 messages=messages,
                 max_tokens=500,
-                temperature=0.7,
+                temperature=0.5,  # Creative but focused
                 stream=False,
                 timeout=30
             )
@@ -155,22 +155,22 @@ class OpenAIInference(BaseInference):
             return final_response.choices[0].message.content
             
         except Exception as e:
-            # Provide contextual response based on tool result
+            # Enhanced contextual fallback responses
             if "courses" in str(tool_result):
                 courses = tool_result.get("courses", [])
                 if courses:
                     course_list = "\n".join([f"- {c.get('name', 'Unknown')} (ID: {c.get('id', 'N/A')})" for c in courses])
-                    return f"Found {len(courses)} courses:\n{course_list}"
+                    return f"Here are your {len(courses)} courses:\n{course_list}\n\nWhat would you like to do with any of these courses? I can help you add modules, assignments, or other content."
                 else:
-                    return "No courses found."
+                    return "No courses found. Would you like me to help you create a new course?"
             elif "id" in str(tool_result) and "name" in str(tool_result):
                 course_name = tool_result.get('name', 'Unknown')
                 course_id = tool_result.get('id', 'N/A')
-                return f"Course '{course_name}' created successfully with ID {course_id}. The course is ready for content."
+                return f"Great! Course '{course_name}' created successfully with ID {course_id}. Would you like me to help you add modules, assignments, or other content to get started?"
             elif "error" in str(tool_result):
-                return f"Error: {tool_result.get('error', 'Unknown error')}"
+                return f"I encountered an issue: {tool_result.get('error', 'Unknown error')}. Let me know how I can help resolve this or try a different approach."
             else:
-                return f"Operation completed successfully."
+                return f"Perfect! The operation was completed successfully. What would you like to do next?"
     
     def get_additional_usage(self):
         """Get additional usage from final response"""

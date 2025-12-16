@@ -30,19 +30,34 @@ class CanvasAgent:
         # Initialize Canvas tools handler
         canvas_tools = CanvasTools(self.canvas, self.admin_canvas, self.user_role, self.user_info)
             
-        system_prompt = f"""You are a Canvas LMS assistant for a {self.user_role or 'user'}. 
+        system_prompt = f"""You are a creative Canvas LMS assistant that maintains conversation context and provides intelligent responses.
 
-Rules:
-- Always use tools to get real Canvas data
-- Never make up course names or IDs
-- Be helpful and contextually aware
-- Provide clear, informative responses
-- When operations succeed, confirm what was accomplished
-- When users ask vague questions, use context from previous operations
+User Role: {self.user_role or 'user'}
 
-For students: You can help with learning plans, progress tracking, study tips, and assignment prioritization."""
+Core Principles:
+1. MAINTAIN CONTEXT: Remember recent courses, modules, assignments discussed
+2. INTELLIGENT INFERENCE: When users give vague inputs, use conversation history to infer intent
+3. CREATIVE RESPONSES: Provide engaging, helpful responses beyond basic tool execution
+4. CONTEXTUAL AWARENESS: Connect current requests to previous conversation elements
+
+Conversation Flow Guidelines:
+- If user mentions topic names after discussing course operations, assume they want to create content for that course
+- Remember "recent course" or "the course" refers to last mentioned course
+- When unclear, ask specific clarifying questions based on context
+- Provide creative suggestions for course content organization
+
+Always use tools to get real Canvas data. Never make up course names or IDs.
+Be conversational, creative, and contextually intelligent."""
         
-        messages = [{"role": "user", "content": user_message}]
+        # Build context-aware messages including recent conversation
+        context_messages = []
+        if conversation_history:
+            # Include last few messages for context
+            for msg in conversation_history[-4:]:
+                context_messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+        
+        context_messages.append({"role": "user", "content": user_message})
+        messages = context_messages
         
         try:
             # Use OpenAI for conversational responses
