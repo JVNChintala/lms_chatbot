@@ -64,8 +64,8 @@ Rules:
                         )
                     except Exception as e:
                         print(f"[CANVAS_AGENT] Final response error: {e}")
-                        # Fallback to direct result formatting
-                        final_content = self._format_tool_result(result["tool_name"], tool_result)
+                        # Fallback to basic response
+                        final_content = "Canvas operation completed"
                 else:
                     final_content = self._format_tool_result(result["tool_name"], tool_result)
                 
@@ -148,31 +148,7 @@ Rules:
         except Exception as e:
             print(f"[USAGE] Failed to track usage: {e}")
     
-    def _format_tool_result(self, tool_name: str, tool_result: dict) -> str:
-        """Format tool results for contextual display"""
-        if tool_name == "list_courses":
-            courses = tool_result.get("courses", [])
-            if courses:
-                course_list = "\n".join([f"- {c.get('name', 'Unknown')} (ID: {c.get('id', 'N/A')})" for c in courses])
-                return f"Found {len(courses)} courses:\n{course_list}"
-            else:
-                return "No courses found."
-        elif tool_name == "create_course":
-            if "error" in tool_result:
-                return f"Course creation failed: {tool_result['error']}"
-            else:
-                course_name = tool_result.get('name', 'Unknown')
-                course_id = tool_result.get('id', 'N/A')
-                return f"Course '{course_name}' created successfully with ID {course_id}. The course is currently unpublished."
-        elif tool_name == "create_module":
-            if "error" in tool_result:
-                return f"Module creation failed: {tool_result['error']}"
-            else:
-                return f"Module '{tool_result.get('name', 'Unknown')}' created successfully."
-        elif "error" in tool_result:
-            return f"Error: {tool_result['error']}"
-        else:
-            return f"Operation completed successfully."
+
     
     def get_inference_status(self):
         """Get status of inference systems"""
