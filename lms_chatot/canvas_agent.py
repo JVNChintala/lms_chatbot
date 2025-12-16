@@ -14,9 +14,9 @@ class CanvasAgent:
         self.user_role = None
         self.user_info = None
         
-        # Force OpenAI inference for conversational responses
-        from inference_systems.openai_inference import OpenAIInference
-        self.inference_system = OpenAIInference()
+        # Use multi-model inference system
+        from inference_systems.multi_model_inference import MultiModelInference
+        self.inference_system = MultiModelInference()
         
     def process_message(self, user_message: str, conversation_history: list, user_role: str = None, user_info: dict = None) -> dict:
         if user_role:
@@ -30,24 +30,13 @@ class CanvasAgent:
         # Initialize Canvas tools handler
         canvas_tools = CanvasTools(self.canvas, self.admin_canvas, self.user_role, self.user_info)
             
-        system_prompt = f"""You are a creative Canvas LMS assistant that maintains conversation context and provides intelligent responses.
+        system_prompt = f"""Canvas LMS assistant for {self.user_role or 'user'}.
 
-User Role: {self.user_role or 'user'}
-
-Core Principles:
-1. MAINTAIN CONTEXT: Remember recent courses, modules, assignments discussed
-2. INTELLIGENT INFERENCE: When users give vague inputs, use conversation history to infer intent
-3. CREATIVE RESPONSES: Provide engaging, helpful responses beyond basic tool execution
-4. CONTEXTUAL AWARENESS: Connect current requests to previous conversation elements
-
-Conversation Flow Guidelines:
-- If user mentions topic names after discussing course operations, assume they want to create content for that course
-- Remember "recent course" or "the course" refers to last mentioned course
-- When unclear, ask specific clarifying questions based on context
-- Provide creative suggestions for course content organization
-
-Always use tools to get real Canvas data. Never make up course names or IDs.
-Be conversational, creative, and contextually intelligent."""
+Rules:
+- Use tools for Canvas operations
+- Maintain conversation context
+- Be precise and helpful
+- Infer intent from context"""
         
         # Build context-aware messages including recent conversation
         context_messages = []
@@ -60,7 +49,7 @@ Be conversational, creative, and contextually intelligent."""
         messages = context_messages
         
         try:
-            # Use OpenAI for conversational responses
+            # Use multi-model system
             result = self.inference_system.call_with_tools(system_prompt, messages, tools)
             
             # Handle tool execution
