@@ -43,7 +43,7 @@ class MultiModelInference(BaseInference):
             intent_response = self.client.chat.completions.create(
                 model="gpt-5-nano",
                 messages=[{"role": "system", "content": "Canvas LMS Assistant: Tool needed? Reply TOOL or CHAT."}] + messages[-1:],
-                max_tokens=5, temperature=0
+                max_completion_tokens=5,
             )
             
             if "TOOL" not in intent_response.choices[0].message.content.upper():

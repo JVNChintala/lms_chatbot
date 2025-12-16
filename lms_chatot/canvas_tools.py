@@ -360,7 +360,7 @@ class CanvasTools:
             
         elif user_role == "admin":
             # Admins get all tools
-            pass
+            return tools
             
         else:
             # Default role gets basic read-only tools
