@@ -32,7 +32,6 @@ class MultiModelInference(BaseInference):
                 model="gpt-5-nano",
                 messages=intent_messages,
                 max_completion_tokens=5,
-                temperature=0
             )
             
             needs_tool = "TOOL" in intent_response.choices[0].message.content.upper()
@@ -99,8 +98,7 @@ class MultiModelInference(BaseInference):
             final_response = self.client.chat.completions.create(
                 model="gpt-5-nano",
                 messages=[{"role": "system", "content": format_prompt}],
-                max_completion_tokens=50,
-                temperature=0
+                max_completion_tokens=50,                
             )
             
             return final_response.choices[0].message.content
