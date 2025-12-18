@@ -1,41 +1,63 @@
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
-
-from fastapi import FastAPI, HTTPException, Header, Request
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from inference_systems.openai_inference import OpenAIInference
 import os
 import sys
+import warnings
+from typing import Optional, List, Dict, Any
+
 import requests
 from dotenv import load_dotenv
-from typing import Optional
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+warnings.filterwarnings("ignore", category=UserWarning)
+
 sys.path.insert(0, os.path.dirname(__file__))
+
+# Routers
 from canvas_routes import router as canvas_router
 from fast_analytics import router as analytics_router
 from file_upload_routes import router as file_upload_router
+
+# Core services
+from inference_systems.openai_inference import OpenAIInference
 from canvas_agent import CanvasAgent
-from session_manager import session_manager
-from auth import create_demo_token, verify_demo_token, CanvasAuth, get_user_by_login, create_user_access_token
-from user_store import user_store
 from canvas_integration import CanvasLMS
-from conversation_db import conversation_db
 from dashboard_widgets import DashboardWidgets
+
+# Auth / session / storage
+from session_manager import session_manager
+from auth import (
+    create_demo_token,
+    CanvasAuth,
+    get_user_by_login,
+    create_user_access_token,
+)
+from user_store import user_store
 from conversations_db import conversations_db
 from usage_tracker import usage_tracker
 
+# ---------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------
 
 load_dotenv()
 
+CANVAS_URL = os.getenv("CANVAS_URL", "")
+CANVAS_TOKEN = os.getenv("CANVAS_TOKEN", "")
+
 app = FastAPI(title="LLM Inference API")
+
 app.include_router(canvas_router)
 app.include_router(analytics_router)
 app.include_router(file_upload_router)
 
+# ---------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------
+
 class InferenceRequest(BaseModel):
     model: str
-    messages: list[dict]
+    messages: List[Dict[str, Any]]
     temperature: float = 0.7
     max_tokens: int = 1000
     session_id: Optional[str] = None
@@ -44,137 +66,10 @@ class InferenceRequest(BaseModel):
     conversation_id: Optional[int] = None
 
 
-
-@app.post("/inference")
-async def inference(request: InferenceRequest):
-    try:
-        session_id = request.session_id
-        if not session_id:
-            session_id = session_manager.create_session(request.user_role)
-        
-        session = session_manager.get_session(session_id)
-        if not session:
-            session_id = session_manager.create_session(request.user_role)
-            session = session_manager.get_session(session_id)
-        
-        user_role = request.user_role or session.get("role")
-        if request.user_role:
-            session_manager.set_role(session_id, request.user_role)
-        
-        # Use Canvas Agent with OpenAI inference for conversational responses
-        canvas_url = os.getenv("CANVAS_URL", "")
-        canvas_token = os.getenv("CANVAS_TOKEN", "")
-        
-        if canvas_url and canvas_token:
-            canvas_user_id = request.canvas_user_id
-            
-            if not canvas_user_id:
-                for username, user_data in user_store.users.items():
-                    if user_data.get("role") == user_role:
-                        canvas_user_id = user_data.get("canvas_user_id")
-                        print(f"[MAIN] Found user {username}: canvas_user_id={canvas_user_id}, role={user_role}")
-                        break
-            
-            user_info = {
-                "canvas_user_id": canvas_user_id,
-                "role": user_role
-            }
-            
-            # Save user message to conversations DB
-            if canvas_user_id:
-                if not hasattr(request, 'conversation_id') or not request.conversation_id:
-                    conv_id = conversations_db.create_conversation(canvas_user_id, "New Chat")
-                else:
-                    conv_id = request.conversation_id
-                
-                conversations_db.add_message(conv_id, "user", request.messages[-1]["content"])
-            
-            # Use Canvas Agent with proper user context
-            agent = CanvasAgent(
-                canvas_url, 
-                canvas_token,
-                canvas_user_id if user_role != "admin" else None
-            )
-            result = agent.process_message(request.messages[-1]["content"], request.messages[:-1], user_role, user_info)
-            
-            # Save assistant response
-            if canvas_user_id:
-                conversations_db.add_message(conv_id, "assistant", result["content"])
-            
-            return {"content": result["content"], "model": request.model, "usage": {}, "session_id": session_id}
-        else:
-            # Fallback to OpenAI inference
-            openai_inference = OpenAIInference(use_multi_model=False)
-            if openai_inference.is_available():
-                result = openai_inference.call_with_tools(
-                    "You are a friendly Canvas LMS assistant.",
-                    request.messages,
-                    []
-                )
-                return {
-                    "content": result.get("content", "Canvas LMS assistant ready."),
-                    "model": request.model,
-                    "usage": result.get("usage", {}),
-                    "session_id": session_id
-                }
-            else:
-                return {
-                    "content": "Canvas LMS assistant is currently unavailable.",
-                    "model": request.model,
-                    "usage": {},
-                    "session_id": session_id
-                }
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Inference Error: {error_details}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-@app.get("/performance")
-async def get_performance_stats():
-    """Get OpenAI API performance statistics"""
-    try:
-        return {
-            "performance": {
-                "status": "OpenAI API active",
-                "type": "GPT models via LiteLLM",
-                "dependencies": "OpenAI API, LiteLLM",
-                "memory_usage": "Minimal"
-            }
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    return HTMLResponse(content="<script>window.location.href='/canvas-login'</script>")
-
-@app.get("/canvas-login", response_class=HTMLResponse)
-async def canvas_login():
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "canvas_login.html")
-    with open(template_path, "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/canvas-dashboard", response_class=HTMLResponse)
-async def canvas_dashboard():
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "vue_dashboard.html")
-    with open(template_path, "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/canvas-embed", response_class=HTMLResponse)
-async def canvas_embed():
-    """Embeddable chatbot for real Canvas LMS"""
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "canvas_embed.html")
-    with open(template_path, "r", encoding="utf-8") as f:
-        return f.read()
-
 class LoginRequest(BaseModel):
     username: str
     password: str
+
 
 class UserCreateRequest(BaseModel):
     login_id: str
@@ -184,336 +79,261 @@ class UserCreateRequest(BaseModel):
     role: str
     canvas_user_id: int
 
+
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
+
+def get_or_create_session(session_id: Optional[str], role: Optional[str]) -> str:
+    if not session_id or not session_manager.get_session(session_id):
+        session_id = session_manager.create_session(role)
+    if role:
+        session_manager.set_role(session_id, role)
+    return session_id
+
+
+def load_html(template_name: str) -> HTMLResponse:
+    path = os.path.join(os.path.dirname(__file__), "templates", template_name)
+    with open(path, encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+def resolve_canvas_user_id(role: str, provided_id: Optional[int]) -> Optional[int]:
+    if provided_id:
+        return provided_id
+
+    for _, user in user_store.users.items():
+        if user.get("role") == role:
+            return user.get("canvas_user_id")
+    return None
+
+
+# ---------------------------------------------------------------------
+# Core Endpoints
+# ---------------------------------------------------------------------
+
+@app.post("/inference")
+async def inference(req: InferenceRequest):
+    try:
+        session_id = get_or_create_session(req.session_id, req.user_role)
+        user_role = req.user_role or session_manager.get_session(session_id).get("role")
+
+        # ---- Canvas-enabled inference
+        if CANVAS_URL and CANVAS_TOKEN:
+            canvas_user_id = resolve_canvas_user_id(user_role, req.canvas_user_id)
+
+            user_info = {
+                "canvas_user_id": canvas_user_id,
+                "role": user_role,
+            }
+
+            # Conversation tracking
+            conv_id = None
+            if canvas_user_id:
+                conv_id = req.conversation_id or conversations_db.create_conversation(
+                    canvas_user_id, "New Chat"
+                )
+                conversations_db.add_message(
+                    conv_id, "user", req.messages[-1]["content"]
+                )
+
+            agent = CanvasAgent(
+                CANVAS_URL,
+                CANVAS_TOKEN,
+                as_user_id=None if user_role == "admin" else canvas_user_id,
+            )
+
+            result = agent.process_message(
+                req.messages[-1]["content"],
+                req.messages[:-1],
+                user_role,
+                user_info,
+            )
+
+            if conv_id:
+                conversations_db.add_message(conv_id, "assistant", result["content"])
+
+            return {
+                "content": result["content"],
+                "model": req.model,
+                "usage": {},
+                "session_id": session_id,
+            }
+
+        # ---- Fallback OpenAI inference
+        openai = OpenAIInference(use_multi_model=False)
+        if not openai.is_available():
+            return {
+                "content": "Canvas LMS assistant is currently unavailable.",
+                "model": req.model,
+                "usage": {},
+                "session_id": session_id,
+            }
+
+        result = openai.call_with_tools(
+            "You are a friendly Canvas LMS assistant.",
+            req.messages,
+            [],
+        )
+
+        return {
+            "content": result.get("content", ""),
+            "model": req.model,
+            "usage": result.get("usage", {}),
+            "session_id": session_id,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.get("/")
+async def root():
+    return HTMLResponse("<script>location.href='/canvas-login'</script>")
+
+
+@app.get("/canvas-login")
+async def canvas_login():
+    return load_html("canvas_login.html")
+
+
+@app.get("/canvas-dashboard")
+async def canvas_dashboard():
+    return load_html("vue_dashboard.html")
+
+
+@app.get("/canvas-embed")
+async def canvas_embed():
+    return load_html("canvas_embed.html")
+
+
+# ---------------------------------------------------------------------
+# Auth & User Management
+# ---------------------------------------------------------------------
+
 @app.post("/demo-login")
-async def demo_login(request: LoginRequest):
-    canvas_url = os.getenv("CANVAS_URL", "")
-    canvas_token = os.getenv("CANVAS_TOKEN", "")
-    
-    print(f"Login attempt: username={request.username}")
-    
-    # First check demo user store (for admin and created users)
-    demo_user = user_store.authenticate(request.username, request.password)
+async def demo_login(req: LoginRequest):
+    demo_user = user_store.authenticate(req.username, req.password)
     if demo_user:
-        print(f"User found in demo store: {request.username}")
         token = create_demo_token(demo_user["login_id"], demo_user["role"])
-        return {"token": token, "role": demo_user["role"], "username": demo_user["login_id"], "canvas_user_id": demo_user["canvas_user_id"]}
-    
-    print(f"User not in demo store, checking Canvas API...")
-    
-    # If not in demo store, check Canvas API
-    if canvas_url and canvas_token:
-        canvas_user = get_user_by_login(canvas_url, canvas_token, request.username)
-        print(f"Canvas user lookup result: {canvas_user}")
-        
-        if canvas_user:
-            try:
-                # Check if this user owns the admin token
-                token_owner_url = f"{canvas_url.rstrip('/').replace('/api/v1', '')}/api/v1/users/self"
-                token_owner_response = requests.get(token_owner_url, headers={"Authorization": f"Bearer {canvas_token}"})
-                token_owner_id = token_owner_response.json().get('id') if token_owner_response.ok else None
-                
-                # If user owns the admin token, they're an admin
-                if token_owner_id == canvas_user['id']:
-                    role = "admin"
-                    print(f"User owns the admin token - setting role to admin")
-                else:
-                    # Use admin token to get user enrollments
-                    url = f"{canvas_url.rstrip('/').replace('/api/v1', '')}/api/v1/users/{canvas_user['id']}/enrollments"
-                    headers = {"Authorization": f"Bearer {canvas_token}"}
-                    response = requests.get(url, headers=headers)
-                    enrollments = response.json() if response.ok else []
-                    
-                    print(f"User enrollments: {len(enrollments)} found")
-                    
-                    # Determine role from enrollments
-                    role = "student"
-                    for enrollment in enrollments:
-                        role_type = enrollment.get('type', '').lower()
-                        if 'teacher' in role_type or 'instructor' in role_type:
-                            role = "teacher"
-                            break
-                    
-                    print(f"Determined role: {role}")
-                
-                # Generate user-specific Canvas access token
-                user_canvas_token = create_user_access_token(canvas_url, canvas_token, canvas_user['id'])
-                
-                # Register in demo store for future logins
-                user_store.add_user(request.username, request.password, role, canvas_user['id'])
-                
-                token = create_demo_token(request.username, role)
-                return {"token": token, "role": role, "username": request.username, "canvas_user_id": canvas_user['id']}
-            except Exception as e:
-                print(f"Error processing Canvas user: {e}")
-                import traceback
-                traceback.print_exc()
-    else:
-        print("Canvas URL or token not configured - using demo mode")
-        # Create demo user when Canvas is not configured
-        if '@' in request.username:  # Email format suggests real user
-            # Determine role from email or default to teacher
-            role = "teacher" if "teacher" in request.username.lower() else "student"
-            canvas_user_id = hash(request.username) % 10000  # Generate consistent ID
-            
-            # Add to demo store
-            user_store.add_user(request.username, request.password, role, canvas_user_id)
-            
-            token = create_demo_token(request.username, role)
-            print(f"Created demo user: {request.username} as {role}")
-            return {"token": token, "role": role, "username": request.username, "canvas_user_id": canvas_user_id}
-    
-    print(f"Login failed for: {request.username}")
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+        return {
+            "token": token,
+            "role": demo_user["role"],
+            "username": demo_user["login_id"],
+            "canvas_user_id": demo_user["canvas_user_id"],
+        }
+
+    if not (CANVAS_URL and CANVAS_TOKEN):
+        role = "teacher" if "teacher" in req.username.lower() else "student"
+        canvas_user_id = hash(req.username) % 10000
+        user_store.add_user(req.username, req.password, role, canvas_user_id)
+        return {
+            "token": create_demo_token(req.username, role),
+            "role": role,
+            "username": req.username,
+            "canvas_user_id": canvas_user_id,
+        }
+
+    canvas_user = get_user_by_login(CANVAS_URL, CANVAS_TOKEN, req.username)
+    if not canvas_user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    role = "student"
+    enrollments_url = f"{CANVAS_URL.rstrip('/').replace('/api/v1','')}/api/v1/users/{canvas_user['id']}/enrollments"
+    r = requests.get(enrollments_url, headers={"Authorization": f"Bearer {CANVAS_TOKEN}"})
+    if r.ok:
+        for e in r.json():
+            if "teacher" in e.get("type", "").lower():
+                role = "teacher"
+                break
+
+    create_user_access_token(CANVAS_URL, CANVAS_TOKEN, canvas_user["id"])
+    user_store.add_user(req.username, req.password, role, canvas_user["id"])
+
+    return {
+        "token": create_demo_token(req.username, role),
+        "role": role,
+        "username": req.username,
+        "canvas_user_id": canvas_user["id"],
+    }
+
 
 @app.post("/register-user")
-async def register_user(request: UserCreateRequest):
-    """Register a Canvas user in demo system"""
-    user_store.add_user(request.login_id, request.password, request.role, request.canvas_user_id)
-    return {"success": True, "message": f"User {request.login_id} registered"}
+async def register_user(req: UserCreateRequest):
+    user_store.add_user(req.login_id, req.password, req.role, req.canvas_user_id)
+    return {"success": True}
 
-@app.post("/canvas-auth")
-async def canvas_auth(access_token: str):
-    """Authenticate with real Canvas LMS and get user role"""
-    try:
-        canvas_url = os.getenv("CANVAS_URL", "")
-        auth = CanvasAuth(canvas_url)
-        profile = auth.get_user_profile(access_token)
-        role = auth.determine_primary_role(access_token)
-        return {"user": profile, "role": role}
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+
+# ---------------------------------------------------------------------
+# Conversations & Analytics
+# ---------------------------------------------------------------------
 
 @app.get("/conversations")
 async def get_conversations(canvas_user_id: int):
-    """Get all conversations for a user"""
-    try:
-        conversations = conversations_db.get_conversations(canvas_user_id)
-        return {"conversations": conversations}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"conversations": conversations_db.get_conversations(canvas_user_id)}
+
 
 @app.post("/conversations")
-async def create_conversation(request: dict):
-    """Create a new conversation"""
-    try:
-        canvas_user_id = request.get("canvas_user_id")
-        title = request.get("title", "New Conversation")
-        conv_id = conversations_db.create_conversation(canvas_user_id, title)
-        return {"conversation_id": conv_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def create_conversation(payload: Dict[str, Any]):
+    conv_id = conversations_db.create_conversation(
+        payload["canvas_user_id"], payload.get("title", "New Conversation")
+    )
+    return {"conversation_id": conv_id}
+
 
 @app.get("/conversations/{conversation_id}/messages")
-async def get_conversation_messages(conversation_id: int):
-    """Get messages for a conversation"""
-    try:
-        messages = conversations_db.get_messages(conversation_id)
-        return {"messages": messages}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def get_messages(conversation_id: int):
+    return {"messages": conversations_db.get_messages(conversation_id)}
+
 
 @app.delete("/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: int):
-    """Delete a conversation"""
-    try:
-        conversations_db.delete_conversation(conversation_id)
-        return {"success": True}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    conversations_db.delete_conversation(conversation_id)
+    return {"success": True}
+
 
 @app.put("/conversations/{conversation_id}/title")
-async def update_conversation_title(conversation_id: int, request: dict):
-    """Update conversation title"""
-    try:
-        title = request.get("title", "Untitled")
-        conversations_db.update_conversation_title(conversation_id, title)
-        return {"success": True}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def update_title(conversation_id: int, payload: Dict[str, Any]):
+    conversations_db.update_conversation_title(
+        conversation_id, payload.get("title", "Untitled")
+    )
+    return {"success": True}
+
 
 @app.get("/usage-stats")
-async def get_usage_stats(canvas_user_id: Optional[int] = None, days: int = 30):
-    """Get AI model usage statistics"""
-    try:
-        stats = usage_tracker.get_usage_stats(canvas_user_id, days)
-        return {"usage_stats": stats}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def usage_stats(canvas_user_id: Optional[int] = None, days: int = 30):
+    return {"usage_stats": usage_tracker.get_usage_stats(canvas_user_id, days)}
 
-@app.get("/analytics")
-async def get_analytics(user_role: str, canvas_user_id: Optional[int] = None):
-    """Get real-time analytics from Canvas API"""
-    try:
-        canvas_url = os.getenv("CANVAS_URL", "")
-        admin_canvas_token = os.getenv("CANVAS_TOKEN", "")
-        
-        if not canvas_url or not admin_canvas_token:
-            return {"analytics": {}}
-        
-        # Get canvas_user_id from user_store if not provided
-        if user_role != "admin" and not canvas_user_id:
-            for username, user_data in user_store.users.items():
-                if user_data.get("role") == user_role:
-                    canvas_user_id = user_data.get("canvas_user_id")
-                    break
-        
-        canvas = CanvasLMS(canvas_url, admin_canvas_token, as_user_id=canvas_user_id if user_role != "admin" else None)
-        admin_canvas = CanvasLMS(canvas_url, admin_canvas_token)
-        
-        if user_role == "admin":
-            courses = admin_canvas.list_account_courses()
-            users = admin_canvas.list_users()
-            
-            # Enhanced admin analytics
-            course_details = []
-            total_enrollments = 0
-            total_modules = 0
-            
-            for course in courses[:10]:  # Top 10 courses for performance
-                try:
-                    enrollments_url = f"{canvas_url.rstrip('/').replace('/api/v1', '')}/api/v1/courses/{course.get('id')}/enrollments"
-                    enrollments_response = requests.get(enrollments_url, headers={"Authorization": f"Bearer {admin_canvas_token}"})
-                    enrollments = enrollments_response.json() if enrollments_response.ok else []
-                    
-                    modules = admin_canvas.list_modules(course.get("id"))
-                    total_modules += len(modules)
-                    
-                    students = len([e for e in enrollments if e.get('type') == 'StudentEnrollment'])
-                    teachers = len([e for e in enrollments if e.get('type') == 'TeacherEnrollment'])
-                    total_enrollments += len(enrollments)
-                    
-                    course_details.append({
-                        "id": course.get("id"),
-                        "name": course.get("name"),
-                        "students": students,
-                        "teachers": teachers,
-                        "modules": len(modules),
-                        "state": course.get("workflow_state")
-                    })
-                except:
-                    pass
-            
-            user_roles = {}
-            for user in users:
-                # Simplified role detection
-                role = "student"  # default
-                user_roles[role] = user_roles.get(role, 0) + 1
-            
-            analytics = {
-                "total_courses": len(courses),
-                "published_courses": len([c for c in courses if c.get("workflow_state") == "available"]),
-                "total_users": len(users),
-                "total_enrollments": total_enrollments,
-                "total_modules": total_modules,
-                "course_details": course_details,
-                "user_distribution": user_roles,
-                "quick_actions": [
-                    {"action": "create_course", "label": "📚 Create Course"},
-                    {"action": "create_user", "label": "👤 Add User"},
-                    {"action": "list_courses", "label": "📋 View All Courses"}
-                ]
-            }
-        elif user_role in ["teacher", "faculty", "instructor"]:
-            courses = canvas.list_courses()
-            total_modules = 0
-            total_assignments = 0
-            student_progress = []
-            course_details = []
-            
-            for course in courses:
-                try:
-                    modules = canvas.list_modules(course.get("id"))
-                    total_modules += len(modules)
-                    
-                    # Get course enrollments for student progress
-                    enrollments_url = f"{canvas_url.rstrip('/').replace('/api/v1', '')}/api/v1/courses/{course.get('id')}/enrollments"
-                    enrollments_response = requests.get(enrollments_url, headers={"Authorization": f"Bearer {admin_canvas_token}"})
-                    enrollments = enrollments_response.json() if enrollments_response.ok else []
-                    
-                    students = [e for e in enrollments if e.get('type') == 'StudentEnrollment']
-                    course_details.append({
-                        "id": course.get("id"),
-                        "name": course.get("name"),
-                        "students": len(students),
-                        "modules": len(modules),
-                        "state": course.get("workflow_state")
-                    })
-                    
-                    for student in students[:5]:  # Top 5 students per course
-                        student_progress.append({
-                            "course": course.get("name"),
-                            "student": student.get("user", {}).get("name", "Unknown"),
-                            "progress": f"{student.get('grades', {}).get('current_score', 0) or 0:.1f}%"
-                        })
-                except:
-                    pass
-            
-            analytics = {
-                "total_courses": len(courses),
-                "published_courses": len([c for c in courses if c.get("workflow_state") == "available"]),
-                "total_modules": total_modules,
-                "total_students": sum([c["students"] for c in course_details]),
-                "course_details": course_details,
-                "student_progress": student_progress,
-                "quick_actions": [
-                    {"action": "create_course", "label": "📚 Create Course"},
-                    {"action": "create_module", "label": "📖 Add Module"},
-                    {"action": "create_assignment", "label": "📝 Create Assignment"}
-                ]
-            }
-        else:  # student
-            courses = canvas.list_courses()
-            analytics = {
-                "enrolled_courses": len(courses),
-                "active_courses": len([c for c in courses if c.get("workflow_state") == "available"]),
-                "quick_actions": [
-                    {"action": "list_courses", "label": "📚 My Courses"},
-                    {"action": "view_assignments", "label": "📝 Assignments"}
-                ]
-            }
-        
-        return {"analytics": analytics}
-    except Exception as e:
-        import traceback
-        print(f"Analytics error: {traceback.format_exc()}")
-        return {"analytics": {}}
 
 @app.get("/dashboard-widgets")
-async def get_dashboard_widgets(user_role: str, canvas_user_id: Optional[int] = None):
-    """Get role-based dashboard widgets"""
-    try:
-        canvas_url = os.getenv("CANVAS_URL", "")
-        admin_canvas_token = os.getenv("CANVAS_TOKEN", "")
-        
-        if not canvas_url or not admin_canvas_token:
-            return {"widgets": {}}
-        
-        # Get canvas_user_id from user_store
-        print(f"[DASHBOARD] Looking for user with role={user_role}, current canvas_user_id={canvas_user_id}")
-        print(f"[DASHBOARD] All users in store: {list(user_store.users.keys())}")
-        if user_role != "admin" and not canvas_user_id:
-            # This is a fallback - ideally canvas_user_id should be passed from frontend
-            print(f"[DASHBOARD] Warning: No canvas_user_id provided for {user_role}")
-            canvas_user_id = None
-        
-        print(f"[DASHBOARD] Creating CanvasLMS with as_user_id={canvas_user_id}, role={user_role}")
-        canvas = CanvasLMS(canvas_url, admin_canvas_token, as_user_id=canvas_user_id if user_role != "admin" else None)
-        widgets_manager = DashboardWidgets(canvas)
-        
-        if user_role == "student":
-            widgets = widgets_manager.get_student_widgets()
-        elif user_role == "teacher":
-            widgets = widgets_manager.get_teacher_widgets()
-        elif user_role == "admin":
-            widgets = widgets_manager.get_admin_widgets()
-        else:
-            widgets = {}
-        
-        return {"widgets": widgets}
-    except Exception as e:
-        import traceback
-        print(f"Widget error: {traceback.format_exc()}")
-        return {"widgets": {}}
+async def dashboard_widgets(user_role: str, canvas_user_id: Optional[int] = None):
+    canvas = CanvasLMS(
+        CANVAS_URL,
+        CANVAS_TOKEN,
+        as_user_id=None if user_role == "admin" else canvas_user_id,
+    )
+    manager = DashboardWidgets(canvas)
+
+    if user_role == "student":
+        widgets = manager.get_student_widgets()
+    elif user_role == "teacher":
+        widgets = manager.get_teacher_widgets()
+    elif user_role == "admin":
+        widgets = manager.get_admin_widgets()
+    else:
+        widgets = {}
+
+    return {"widgets": widgets}
+
+
+# ---------------------------------------------------------------------
+# Entrypoint
+# ---------------------------------------------------------------------
 
 if __name__ == "__main__":
     import uvicorn

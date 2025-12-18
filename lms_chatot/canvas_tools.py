@@ -1,314 +1,232 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Callable
 from canvas_integration import CanvasLMS
-from student_features import StudentFeatures
-from video_generators.video_manager import VideoManager
+from canvas_tools_schemas import CanvasToolSchemas
 
 class CanvasTools:
-    """Universal Canvas LMS tools for all inference systems"""
-    
-    def __init__(self, canvas: CanvasLMS, admin_canvas: CanvasLMS, user_role: str = None, user_info: dict = None):
+    """Universal Canvas LMS tool executor"""
+
+    def __init__(
+        self,
+        canvas: CanvasLMS,
+        admin_canvas: CanvasLMS,
+        user_role: str | None = None,
+        user_info: dict | None = None,
+    ):
         self.canvas = canvas
         self.admin_canvas = admin_canvas
-        self.user_role = user_role
-        self.user_info = user_info
-        self.canvas_user_id = user_info.get('canvas_user_id') if user_info else None
-        print(f"[CANVAS_TOOLS] Initialized for user_id={self.canvas_user_id}, role={self.user_role}")
-    
+        self.user_role = user_role or "default"
+        self.user_info = user_info or {}
+        self.canvas_user_id = self.user_info.get("canvas_user_id")
+
+        print(
+            f"[CANVAS_TOOLS] Initialized role={self.user_role}, "
+            f"user_id={self.canvas_user_id}"
+        )
+
+        self._dispatch: Dict[str, Callable[[dict], Any]] = {
+            "list_user_courses": self._list_user_courses,
+            "get_course": self._get_course,
+            "create_course": self._create_course,
+            "publish_course": self._publish_course,
+            "unpublish_course": self._unpublish_course,
+            "list_modules": self._list_modules,
+            "create_module": self._create_module,
+            "list_assignments": self._list_assignments,
+            "get_assignment": self._get_assignment,
+            "create_assignment": self._create_assignment,
+            "grade_assignment": self._grade_assignment,
+            "submit_assignment": self._submit_assignment,
+            "list_users": self._list_users,
+            "enroll_user": self._enroll_user,
+            "list_enrollments": self._list_enrollments,
+            "get_user_profile": self._get_user_profile,
+        }
+
+    # ------------------------------------------------------------------
+    # Tool definitions (LLM-visible)
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def get_tool_definitions(user_role: str = None) -> List[Dict[str, Any]]:
-        """Get comprehensive Canvas tool definitions for all inference systems"""
+    def get_tool_definitions(user_role: str | None = None) -> List[Dict[str, Any]]:
         tools = [
-            # Core Canvas operations mapped to intents
-            {
-                "type": "function",
-                "function": {
-                    "name": "list_user_courses",
-                    "description": "List courses for the user",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-            {
-                "type": "function", 
-                "function": {
-                    "name": "get_course",
-                    "description": "Get detailed course information",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"}
-                        },
-                        "required": ["course_id"]
-                    }
-                }
-            },
-
-            {
-                "type": "function",
-                "function": {
-                    "name": "create_course",
-                    "description": "Create a new course",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string", "description": "Course name"},
-                            "course_code": {"type": "string", "description": "Course code"},
-                            "description": {"type": "string", "description": "Course description"}
-                        },
-                        "required": ["name", "course_code"]
-                    }
-                }
-            },
-
-            
-            {
-                "type": "function",
-                "function": {
-                    "name": "list_modules",
-                    "description": "List modules in a course",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"}
-                        },
-                        "required": ["course_id"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "create_module",
-                    "description": "Create a new module in a course",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"},
-                            "name": {"type": "string", "description": "Module name"},
-                            "position": {"type": "integer", "description": "Module position"}
-                        },
-                        "required": ["course_id", "name"]
-                    }
-                }
-            },
-
-            
-            {
-                "type": "function",
-                "function": {
-                    "name": "list_assignments",
-                    "description": "List assignments in a course",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"}
-                        },
-                        "required": ["course_id"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_assignment",
-                    "description": "Get specific assignment details",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"},
-                            "assignment_id": {"type": "integer", "description": "Assignment ID"}
-                        },
-                        "required": ["course_id", "assignment_id"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "grade_assignment",
-                    "description": "Grade an assignment submission",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"},
-                            "assignment_id": {"type": "integer", "description": "Assignment ID"},
-                            "user_id": {"type": "integer", "description": "Student ID"},
-                            "grade": {"type": "number", "description": "Grade to assign"}
-                        },
-                        "required": ["course_id", "assignment_id", "user_id", "grade"]
-                    }
-                }
-            },
-
-            
-            {
-                "type": "function",
-                "function": {
-                    "name": "enroll_user",
-                    "description": "Enroll user in course",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "course_id": {"type": "integer", "description": "Course ID"},
-                            "user_id": {"type": "integer", "description": "User ID"},
-                            "role": {"type": "string", "description": "StudentEnrollment or TeacherEnrollment"}
-                        },
-                        "required": ["course_id", "user_id", "role"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "list_users",
-                    "description": "List all users in the account (admin only)",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            },
-
+            CanvasToolSchemas.list_user_courses(),
+            CanvasToolSchemas.get_course(),
+            CanvasToolSchemas.create_course(),
+            CanvasToolSchemas.publish_course(),
+            # CanvasToolSchemas.unpublish_course(),
+            CanvasToolSchemas.list_modules(),
+            CanvasToolSchemas.create_module(),
+            CanvasToolSchemas.list_assignments(),
+            CanvasToolSchemas.get_assignment(),
+            CanvasToolSchemas.create_assignment(),
+            CanvasToolSchemas.grade_assignment(),
+            # CanvasToolSchemas.submit_assignment(),
+            CanvasToolSchemas.enroll_user(),
+            CanvasToolSchemas.list_users(),
+            # CanvasToolSchemas.list_enrollments(),
+            # CanvasToolSchemas.get_user_profile(),
         ]
-        
-        # Role-based tool filtering
-        if user_role == "student":
-            student_tools = ["list_user_courses", "list_modules", "get_course", "list_assignments", "get_assignment"]
-            tools = [t for t in tools if t["function"]["name"] in student_tools]
-            
-        elif user_role in ["teacher", "faculty", "instructor"]:
-            # Teachers get most tools except admin-only functions
-            admin_only = ["list_users"]
-            tools = [t for t in tools if t["function"]["name"] not in admin_only]
-            
-        elif user_role == "admin":
-            # Admins get all tools
-            return tools
-            
-        else:
-            # Default role gets basic read-only tools
-            basic_tools = ["list_user_courses", "list_modules", "get_course"]
-            tools = [t for t in tools if t["function"]["name"] in basic_tools]
-            
-        return tools
-    
+
+        role = user_role or "default"
+
+        ROLE_MAP = {
+            "student": {
+                "list_user_courses",
+                "get_course",
+                "list_modules",
+                "list_assignments",
+                "get_assignment",
+                "submit_assignment",
+                "get_user_profile",
+            },
+            "teacher": {
+                t["function"]["name"] for t in tools
+            } - {"list_users"},
+            "faculty": {
+                t["function"]["name"] for t in tools
+            } - {"list_users"},
+            "instructor": {
+                t["function"]["name"] for t in tools
+            } - {"list_users"},
+            "admin": {t["function"]["name"] for t in tools},
+        }
+
+        allowed = ROLE_MAP.get(role, {"list_user_courses", "get_course"})
+        return [t for t in tools if t["function"]["name"] in allowed]
+
+    # ------------------------------------------------------------------
+    # Tool executor
+    # ------------------------------------------------------------------
+
     def execute_tool(self, function_name: str, arguments: dict) -> Dict[str, Any]:
-        """Execute Canvas tool - universal for all inference systems"""
+        handler = self._dispatch.get(function_name)
+        if not handler:
+            return {"error": f"Unknown function: {function_name}"}
+
         try:
-            if function_name == "list_user_courses":
-                print(f"[CANVAS_TOOLS] list_user_courses for role={self.user_role}, user_id={self.canvas_user_id}")
-                
-                if self.user_role == "admin":
-                    courses = self.admin_canvas.list_account_courses()
-                else:
-                    courses = self.canvas.list_courses()
-                
-                print(f"[CANVAS_TOOLS] Found {len(courses)} courses")
-                return {
-                    "total_courses": len(courses),
-                    "courses": [{
-                        "id": c.get("id"), 
-                        "name": c.get("name"), 
-                        "course_code": c.get("course_code"),
-                        "workflow_state": c.get("workflow_state")
-                    } for c in courses]
+            return handler(arguments)
+        except Exception as exc:
+            return {"error": str(exc)}
+
+    # ------------------------------------------------------------------
+    # Tool handlers
+    # ------------------------------------------------------------------
+
+    def _list_user_courses(self, _: dict):
+        courses = (
+            self.admin_canvas.list_account_courses()
+            if self.user_role == "admin"
+            else self.canvas.list_courses()
+        )
+        return {
+            "total_courses": len(courses),
+            "courses": [
+                {
+                    "id": c.get("id"),
+                    "name": c.get("name"),
+                    "course_code": c.get("course_code"),
+                    "workflow_state": c.get("workflow_state"),
                 }
-                
-            elif function_name == "get_course":
-                course = self.canvas.get_course(arguments["course_id"])
-                return course
-                
-            elif function_name == "list_assignments":
-                assignments = self.canvas.list_assignments(arguments["course_id"])
-                return {"assignments": assignments}
-                
-            elif function_name == "get_assignment":
-                assignment = self.canvas.get_assignment(arguments["course_id"], arguments["assignment_id"])
-                return assignment
-                
-            elif function_name == "grade_assignment":
-                if self.user_role not in ["admin", "teacher", "faculty", "instructor"]:
-                    return {"error": "Only teachers and admins can grade assignments"}
-                
-                result = self.canvas.grade_assignment(
-                    course_id=arguments["course_id"],
-                    assignment_id=arguments["assignment_id"],
-                    user_id=arguments["user_id"],
-                    grade=arguments["grade"]
-                )
-                return result
-                
-            elif function_name == "list_courses":
-                # Legacy support - redirect to list_user_courses
-                return self.execute_tool("list_user_courses", {})
-                
-            # Course Management
-            elif function_name == "create_course":
-                print(f"[CANVAS_TOOLS] create_course: {arguments['name']} by role={self.user_role}")
-                
-                result = self.admin_canvas.create_course(
-                    account_id=1,
-                    name=arguments["name"],
-                    course_code=arguments["course_code"],
-                    description=arguments.get("description")
-                )
-                
-                if self.user_role in ["teacher", "faculty", "instructor"] and self.canvas_user_id and result.get("id"):
-                    try:
-                        print(f"[CANVAS_TOOLS] Auto-enrolling teacher {self.canvas_user_id} in course {result['id']}")
-                        self.admin_canvas.enroll_user(
-                            course_id=result["id"],
-                            user_id=self.canvas_user_id,
-                            role="TeacherEnrollment"
-                        )
-                        result["auto_enrolled"] = True
-                    except Exception as e:
-                        print(f"[CANVAS_TOOLS] Auto-enrollment failed: {e}")
-                
-                print(f"[CANVAS_TOOLS] Course created: ID={result.get('id')}")
-                return result
-                
+                for c in courses
+            ],
+        }
 
-                
-            # Module Management
-            elif function_name == "list_modules":
-                modules = self.canvas.list_modules(arguments["course_id"])
-                return modules
-                
-            elif function_name == "create_module":
-                result = self.canvas.create_module(
-                    course_id=arguments["course_id"],
-                    name=arguments["name"],
-                    position=arguments.get("position")
-                )
-                return result
-                
+    def _get_course(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.get_course(args["course_id"])
 
-                
+    def _create_course(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        course = self.admin_canvas.create_course(
+            account_id=1,
+            name=args["name"],
+            course_code=args["course_code"],
+            description=args.get("description"),
+        )
 
-                
+        if (
+            self.user_role in {"teacher", "faculty", "instructor"}
+            and self.canvas_user_id
+            and course.get("id")
+        ):
+            self.admin_canvas.enroll_user(
+                course_id=course["id"],
+                user_id=self.canvas_user_id,
+                role="TeacherEnrollment",
+            )
+            course["auto_enrolled"] = True
 
-                
+        return course
 
-                
-            elif function_name == "list_users":
-                users = self.admin_canvas.list_users()
-                return {
-                    "total_users": len(users),
-                    "users": [{"id": u.get("id"), "name": u.get("name"), "login_id": u.get("login_id")} for u in users]
+    def _publish_course(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.admin_canvas.update_course(
+            args["course_id"], {"event": "offer"}
+        )
+
+    def _unpublish_course(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.admin_canvas.update_course(
+            args["course_id"], {"event": "claim"}
+        )
+
+    def _list_modules(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.list_modules(args["course_id"])
+
+    def _create_module(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.create_module(
+            course_id=args["course_id"],
+            name=args["name"],
+            position=args.get("position"),
+        )
+
+    def _list_assignments(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.list_assignments(args["course_id"])
+
+    def _get_assignment(self, args: dict):
+        return self.canvas.get_assignment(
+            args["course_id"], args["assignment_id"]
+        )
+
+    def _create_assignment(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.create_assignment(args["course_id"], args)
+
+    def _grade_assignment(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        if self.user_role not in {"admin", "teacher", "faculty", "instructor"}:
+            return {"error": "Permission denied"}
+        return self.canvas.grade_assignment(**args)
+
+    def _submit_assignment(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.submit_assignment(**args)
+
+    def _list_users(self, _: dict):
+        users = self.admin_canvas.list_users()
+        return {
+            "total_users": len(users),
+            "users": [
+                {
+                    "id": u.get("id"),
+                    "name": u.get("name"),
+                    "login_id": u.get("login_id"),
                 }
-                
-            elif function_name == "enroll_user":
-                result = self.admin_canvas.enroll_user(
-                    course_id=arguments["course_id"],
-                    user_id=arguments["user_id"],
-                    role=arguments["role"]
-                )
-                return result
-                
+                for u in users
+            ],
+        }
 
-                
+    def _enroll_user(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.admin_canvas.enroll_user(**args)
 
-                
-            else:
-                return {"error": f"Unknown function: {function_name}"}
-                
-        except Exception as e:
-            return {"error": str(e)}
-    
+    def _list_enrollments(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.list_enrollments(args["course_id"])
+
+    def _get_user_profile(self, args: dict):
+        print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        return self.canvas.get_user_profile(args["user_id"])
