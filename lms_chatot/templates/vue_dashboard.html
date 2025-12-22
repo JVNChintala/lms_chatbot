@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canvas LMS - Vue Dashboard</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; }
@@ -47,9 +48,27 @@
         .chat-box { flex: 1; overflow-y: auto; padding: 20px; }
         .message { margin-bottom: 15px; display: flex; }
         .message.user { justify-content: flex-end; }
-        .message-content { max-width: 70%; padding: 10px 15px; border-radius: 10px; }
+        .message-content { max-width: 70%; padding: 10px 15px; border-radius: 10px; line-height: 1.6; }
         .message.user .message-content { background: #2563eb; color: white; }
         .message.assistant .message-content { background: #e5e7eb; color: #1f2937; }
+        .message-content h1, .message-content h2, .message-content h3 { margin: 10px 0 5px 0; font-weight: 600; }
+        .message-content h1 { font-size: 1.5em; }
+        .message-content h2 { font-size: 1.3em; }
+        .message-content h3 { font-size: 1.1em; }
+        .message-content p { margin: 8px 0; }
+        .message-content ul, .message-content ol { margin: 8px 0; padding-left: 20px; }
+        .message-content li { margin: 4px 0; }
+        .message-content code { background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        .message-content pre { background: rgba(0,0,0,0.1); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+        .message-content pre code { background: none; padding: 0; }
+        .message-content blockquote { border-left: 3px solid rgba(0,0,0,0.2); padding-left: 10px; margin: 8px 0; font-style: italic; }
+        .message-content a { color: #2563eb; text-decoration: underline; }
+        .message.user .message-content a { color: #93c5fd; }
+        .message-content strong { font-weight: 600; }
+        .message-content em { font-style: italic; }
+        .message-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        .message-content th, .message-content td { border: 1px solid rgba(0,0,0,0.2); padding: 6px; text-align: left; }
+        .message-content th { background: rgba(0,0,0,0.1); font-weight: 600; }
         .input-area { padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; }
         .input-area input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; }
         .input-area button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
@@ -268,50 +287,7 @@
                     <div class="chat-box" ref="chatBox">
                         <div v-for="(message, index) in messages" :key="index" 
                              class="message" :class="message.role">
-                            <div class="message-content" v-html="message.content"></div>
-                            <!-- Dynamic Analytics Widget -->
-                            <div v-if="message.analytics && message.role === 'assistant'" 
-                                 class="chat-analytics-widget" 
-                                 style="margin: 15px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
-                                <div class="analytics-header" style="font-size: 16px; font-weight: 600; margin-bottom: 15px; text-align: center;">
-                                    📊 Canvas Analytics
-                                </div>
-                                
-                                <!-- Metrics Cards -->
-                                <div class="metrics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                                    <div v-for="(value, key) in getMetrics(message.analytics)" :key="key" 
-                                         class="metric-card" 
-                                         style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
-                                        <div style="font-size: 24px; font-weight: 700; margin-bottom: 5px;">{{ value }}</div>
-                                        <div style="font-size: 11px; opacity: 0.9;">{{ formatLabel(key) }}</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Recent Courses -->
-                                <div v-if="message.analytics.recent_courses && message.analytics.recent_courses.length > 0" 
-                                     style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-                                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">📚 Recent Courses</div>
-                                    <div v-for="course in message.analytics.recent_courses" :key="course.id" 
-                                         style="background: rgba(255,255,255,0.1); padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 12px;">
-                                        {{ course.name }}
-                                    </div>
-                                </div>
-                                
-                                <!-- Quick Actions -->
-                                <div v-if="message.analytics.quick_actions && message.analytics.quick_actions.length > 0" 
-                                     class="quick-actions" style="text-align: center;">
-                                    <div style="font-size: 13px; margin-bottom: 10px; opacity: 0.9;">Quick Actions</div>
-                                    <button v-for="action in message.analytics.quick_actions" :key="action.action"
-                                            @click="executeQuickAction(action)"
-                                            style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); 
-                                                   padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; 
-                                                   margin: 0 3px; transition: all 0.3s;"
-                                            @mouseover="$event.target.style.background='rgba(255,255,255,0.3)'"
-                                            @mouseout="$event.target.style.background='rgba(255,255,255,0.2)'">
-                                        {{ action.label }}
-                                    </button>
-                                </div>
-                            </div>
+                            <div class="message-content" v-html="renderMarkdown(message.content)"></div>
                         </div>
                         <div v-if="isLoading" class="message assistant">
                             <div class="message-content loading">
@@ -402,6 +378,22 @@
                 }
             },
             methods: {
+                renderMarkdown(content) {
+                    if (!content) return '';
+                    try {
+                        // Configure marked for better rendering
+                        marked.setOptions({
+                            breaks: true,
+                            gfm: true,
+                            headerIds: false,
+                            mangle: false
+                        });
+                        return marked.parse(content);
+                    } catch (error) {
+                        console.error('Markdown parsing error:', error);
+                        return content;
+                    }
+                },
                 async loadAnalytics() {
                     try {
                         const controller = new AbortController();

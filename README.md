@@ -1,11 +1,11 @@
-# Canvas LMS AI Assistant with AWS Bedrock
+# Canvas LMS AI Assistant with OpenAI
 
-A powerful AI-powered assistant for Canvas LMS integration using AWS Bedrock and Claude 3 Sonnet.
+A streamlined AI-powered assistant for Canvas LMS integration using OpenAI and FastAPI.
 
 ## 🚀 Features
 
 - **Canvas LMS Integration**: Full API integration with Canvas Learning Management System
-- **AWS Bedrock AI**: Claude 3 Sonnet for intelligent tool calling and conversations
+- **OpenAI Integration**: GPT-4 for intelligent tool calling and conversations
 - **Role-Based Access**: Support for Admin, Teacher, and Student roles
 - **Real-time Analytics**: Performance monitoring and Canvas data insights
 - **Smart Tool Detection**: AI-powered intent recognition and Canvas operations
@@ -14,16 +14,16 @@ A powerful AI-powered assistant for Canvas LMS integration using AWS Bedrock and
 ## 🛠️ Tech Stack
 
 - **Backend**: FastAPI, Python 3.8+
-- **AI Model**: Claude 3 Sonnet via AWS Bedrock
+- **AI Model**: OpenAI GPT-4 (via Responses API)
 - **LMS Integration**: Canvas API
-- **Database**: SQLite for conversations
-- **Frontend**: Vue.js dashboard
+- **Database**: SQLite for conversations and usage tracking
+- **Frontend**: Vue.js 3 dashboard
 - **Authentication**: JWT tokens
 
 ## 📋 Prerequisites
 
 - Python 3.8+
-- AWS Account with Bedrock access
+- OpenAI API key
 - Canvas LMS instance with API access
 - Valid Canvas API token
 
@@ -43,12 +43,12 @@ A powerful AI-powered assistant for Canvas LMS integration using AWS Bedrock and
 3. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your Canvas URL, token, and AWS credentials
+   # Edit .env with your Canvas URL, token, and OpenAI API key
    ```
 
 4. **Run the application**
    ```bash
-   cd lms_chatot
+   cd lms_chatbot
    python main.py
    ```
 
@@ -60,21 +60,13 @@ A powerful AI-powered assistant for Canvas LMS integration using AWS Bedrock and
 CANVAS_URL=https://your-canvas-instance.com/api/v1
 CANVAS_TOKEN=your_canvas_api_token
 
-# AWS Bedrock Configuration
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
 
 # Application Settings
 SECRET_KEY=your-secret-key-here
 DEBUG=True
 ```
-
-### AWS Bedrock Setup
-
-1. **Enable Claude 3 Sonnet** in AWS Bedrock console
-2. **Configure IAM permissions** for Bedrock access
-3. **Set AWS credentials** in environment variables
 
 ## 🎯 Usage
 
@@ -84,10 +76,28 @@ DEBUG=True
 - Start chatting with the AI assistant
 
 ### API Endpoints
+
+#### Core Endpoints
 - `POST /inference` - Chat with AI assistant
-- `GET /performance` - Performance metrics
-- `GET /analytics` - Canvas analytics
+- `GET /analytics` - Get Canvas analytics
 - `GET /conversations` - Chat history
+- `GET /health` - Health check
+
+#### Authentication
+- `POST /demo-login` - Login endpoint
+- `POST /register-user` - User registration
+
+#### Conversations
+- `GET /conversations` - List user conversations
+- `POST /conversations` - Create new conversation
+- `GET /conversations/{id}/messages` - Get conversation messages
+- `DELETE /conversations/{id}` - Delete conversation
+- `PUT /conversations/{id}/title` - Update conversation title
+
+#### Analytics & Widgets
+- `GET /analytics?user_role={role}&canvas_user_id={id}` - Get analytics
+- `GET /dashboard-widgets?user_role={role}&canvas_user_id={id}` - Get dashboard widgets
+- `GET /usage-stats?canvas_user_id={id}&days={days}` - Usage statistics
 
 ### Supported Commands
 - "List my courses" - Show enrolled courses
@@ -95,41 +105,43 @@ DEBUG=True
 - "Show modules in course X" - Display course modules
 - "Create assignment" - Add new assignment
 - "Add student to course" - Enroll users (admin only)
+- "Grade assignment" - Grade student work (teacher only)
 
-## 📊 Performance Features
+## 📊 Architecture
 
-### AWS Bedrock Advantages
-- **High Accuracy**: Claude 3 Sonnet for precise tool calling
-- **Fast Response**: Optimized for educational workflows
-- **Scalable**: AWS infrastructure handles load
-- **Secure**: Enterprise-grade security and compliance
-
-### Monitoring
-Access real-time performance metrics at `/performance`:
-- Response times and accuracy
-- Tool usage statistics
-- Canvas API performance
-- System health insights
+```
+lms_chatbot/
+├── lms_chatot/
+│   ├── main.py                    # FastAPI application
+│   ├── canvas_agent.py            # Main agent orchestrator
+│   ├── canvas_integration.py      # Canvas API wrapper
+│   ├── canvas_tools.py            # Canvas tool executor
+│   ├── canvas_tools_schemas.py    # Tool definitions
+│   ├── intent_classifier.py       # Intent classification
+│   ├── analytics_cache.py         # Analytics caching
+│   ├── dashboard_widgets.py       # Dashboard data
+│   ├── conversations_db.py        # Conversation storage
+│   ├── usage_tracker.py           # Usage tracking
+│   ├── auth.py                    # Authentication
+│   ├── user_store.py              # User management
+│   ├── session_manager.py         # Session handling
+│   ├── inference_systems/
+│   │   ├── base_inference.py      # Base inference class
+│   │   └── openai_inference.py    # OpenAI integration
+│   └── templates/
+│       ├── canvas_login.html      # Login page
+│       └── vue_dashboard.html     # Main dashboard
+├── requirements.txt               # Dependencies
+└── .env                          # Configuration
+```
 
 ## 🔒 Security
 
-- AWS IAM-based authentication
-- Role-based access control
 - Canvas API token validation
+- Role-based access control (RBAC)
 - Secure session management
-
-## 🏗️ Architecture
-
-```
-├── lms_chatot/
-│   ├── main.py              # FastAPI application
-│   ├── canvas_agent.py      # AWS Bedrock agent with Claude
-│   ├── canvas_integration.py # Canvas API wrapper
-│   ├── auth.py              # Authentication
-│   └── templates/           # Web interface
-├── requirements.txt         # Dependencies
-└── .env                     # Configuration
-```
+- JWT-based authentication
+- Input validation and sanitization
 
 ## 🚀 Deployment
 
@@ -140,7 +152,7 @@ python lms_chatot/main.py
 
 ### Production
 ```bash
-uvicorn lms_chatot.main:app --host 0.0.0.0 --port 8001
+uvicorn lms_chatot.main:app --host 0.0.0.0 --port 8001 --workers 4
 ```
 
 ### Docker
@@ -167,12 +179,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Documentation**: Check AWS Bedrock documentation
+- **Documentation**: Check OpenAI and Canvas API documentation
 - **Issues**: Create an issue on GitHub
-- **Performance**: Check `/performance` endpoint for metrics
+- **Analytics**: Check `/analytics` endpoint for metrics
 
 ## 🙏 Acknowledgments
 
-- AWS Bedrock and Claude 3 Sonnet
+- OpenAI GPT-4
 - Canvas LMS API
 - FastAPI framework
+- Vue.js 3

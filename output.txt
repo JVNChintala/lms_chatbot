@@ -1,0 +1,46 @@
+Traceback (most recent call last):
+  File "d:\NARENDRA\PROJECTS\lms_chatbot\lms_chatot\canvas_tools.py", line 107, in execute_tool
+    result = handler(arguments)
+             ^^^^^^^^^^^^^^^^^^
+  File "d:\NARENDRA\PROJECTS\lms_chatbot\lms_chatot\canvas_tools.py", line 147, in _create_course
+    name=args["name"],
+         ~~~~^^^^^^^^
+TypeError: string indices must be integers, not 'str'
+Testing OpenAI Responses API with Canvas LMS Integration
+
+[CanvasLMS] Initialized with as_user_id=None
+[CanvasLMS] Initialized with as_user_id=None
+[CANVAS_AGENT] Intent classified: {'intent': 'create_course', 'confidence': 1.0, 'needs_tool': True}
+[CANVAS_AGENT] Tools for intent 'create_course' and role 'admin': 1 tools
+[CANVAS_AGENT] Selected tool: create_course
+[CANVAS_TOOLS] Initialized role=admin, user_id=1765
+[CANVAS_AGENT] Inference result for tool create_course: needs_tool=True, has_args=True
+[CANVAS_AGENT] Executing tool create_course with args: {"name":"OpenAI Test Course","course_code":"OPENAI-TEST","description":""}
+[CANVAS_TOOLS] [Arguments] {"name":"OpenAI Test Course","course_code":"OPENAI-TEST","description":""}
+[CANVAS_TOOLS] execute_tool exception: string indices must be integers, not 'str'
+[CANVAS_AGENT] Tool call result: {'error': "string indices must be integers, not 'str'"}
+[CANVAS_AGENT] Tool execution result: dict with keys: ['error']
+
+=== TEST 4: Create Course ===
+Response: It looks like you're encountering an error that says "string indices must be integers, not 'str'." This usually happens when your code is trying to access a character in a string using another string as an index, which isn't allowed.
+
+To fix this issue, make sure you're using an integer to index int...
+Tool Used: True
+Success: True
+[CanvasLMS] Initialized with as_user_id=None
+[CanvasLMS] Initialized with as_user_id=None
+[CANVAS_AGENT] Intent classified: {'intent': 'create_module', 'confidence': 0.0, 'needs_tool': True}
+[CANVAS_AGENT] No tool needed, handling as general question
+
+=== TEST 5: Create Module ===
+Response: To create a module named 'Week 1: Introduction' in course 105 in Canvas LMS, follow these steps:
+
+1. **Log in to Canvas**: Sign in to your Canvas account.
+
+2. **Navigate to Course 105**: Click on "Courses" in the left-hand menu, then select "105" from your list of courses.
+
+3. **Access Modules**: In...
+Tool Used: False
+Success: False
+
+[OK] Canvas write operations test completed

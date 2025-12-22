@@ -261,6 +261,27 @@ class CanvasToolSchemas:
         }
 
     # ------------------------------------------------------------------
+    # Pages
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def create_page() -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_page",
+                "description": "Create a content page in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "title": {"type": "string"},
+                        "body": {"type": "string"},
+                    },
+                    "required": ["course_id", "title", "body"],
+                },
+            },
+        }# ------------------------------------------------------------------
     # Announcements
     # ------------------------------------------------------------------
 
@@ -328,3 +349,308 @@ class CanvasToolSchemas:
             CanvasToolSchemas.create_announcement(),
             CanvasToolSchemas.list_course_files(),
         ]
+
+    @staticmethod
+    def update_course():
+        return {
+            "type": "function",
+            "function": {
+                "name": "update_course",
+                "description": "Update course settings",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "name": {"type": "string", "description": "New course name"},
+                        "course_code": {"type": "string", "description": "New course code"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def update_assignment():
+        return {
+            "type": "function",
+            "function": {
+                "name": "update_assignment",
+                "description": "Update an assignment",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "assignment_id": {"type": "integer", "description": "Assignment ID"},
+                        "name": {"type": "string", "description": "Assignment name"},
+                        "points_possible": {"type": "number", "description": "Points possible"},
+                    },
+                    "required": ["course_id", "assignment_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def delete_assignment():
+        return {
+            "type": "function",
+            "function": {
+                "name": "delete_assignment",
+                "description": "Delete an assignment",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "assignment_id": {"type": "integer", "description": "Assignment ID"},
+                    },
+                    "required": ["course_id", "assignment_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def get_module():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_module",
+                "description": "Get module details",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "module_id": {"type": "integer", "description": "Module ID"},
+                    },
+                    "required": ["course_id", "module_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def update_module():
+        return {
+            "type": "function",
+            "function": {
+                "name": "update_module",
+                "description": "Update a module",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "module_id": {"type": "integer", "description": "Module ID"},
+                        "name": {"type": "string", "description": "Module name"},
+                    },
+                    "required": ["course_id", "module_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def delete_module():
+        return {
+            "type": "function",
+            "function": {
+                "name": "delete_module",
+                "description": "Delete a module",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "module_id": {"type": "integer", "description": "Module ID"},
+                    },
+                    "required": ["course_id", "module_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def create_user():
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_user",
+                "description": "Create a new user",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "User full name"},
+                        "email": {"type": "string", "description": "User email"},
+                        "login_id": {"type": "string", "description": "Login ID"},
+                    },
+                    "required": ["name", "email", "login_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def unenroll_user():
+        return {
+            "type": "function",
+            "function": {
+                "name": "unenroll_user",
+                "description": "Unenroll a user from a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "enrollment_id": {"type": "integer", "description": "Enrollment ID"},
+                    },
+                    "required": ["course_id", "enrollment_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_announcements():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_announcements",
+                "description": "List course announcements",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_discussions():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_discussions",
+                "description": "List course discussions",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_quizzes():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_quizzes",
+                "description": "List course quizzes",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def create_quiz():
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_quiz",
+                "description": "Create a quiz",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "title": {"type": "string", "description": "Quiz title"},
+                    },
+                    "required": ["course_id", "title"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_pages():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_pages",
+                "description": "List course pages",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_files():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_files",
+                "description": "List course files",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def upload_file():
+        return {
+            "type": "function",
+            "function": {
+                "name": "upload_file",
+                "description": "Upload a file to course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "file_name": {"type": "string", "description": "File name"},
+                    },
+                    "required": ["course_id", "file_name"],
+                },
+            },
+        }
+
+    @staticmethod
+    def get_grades():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_grades",
+                "description": "Get student grades",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "user_id": {"type": "integer", "description": "User ID (optional)"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def view_gradebook():
+        return {
+            "type": "function",
+            "function": {
+                "name": "view_gradebook",
+                "description": "View course gradebook",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }

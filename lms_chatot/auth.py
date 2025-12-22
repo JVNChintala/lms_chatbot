@@ -1,6 +1,6 @@
 import requests
 from typing import Optional, Dict
-import jwt
+from jose import jwt
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv

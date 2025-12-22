@@ -2,8 +2,7 @@ import os
 import uuid
 import mimetypes
 import requests
-from typing import Dict, List, Any, Optional
-from werkzeug.utils import secure_filename
+from typing import Dict, Any
 from canvas_integration import CanvasLMS
 
 class FileManager:
@@ -13,41 +12,30 @@ class FileManager:
         self.canvas = canvas
         self.upload_folder = upload_folder
         self.allowed_extensions = {
-            'images': {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'},
-            'documents': {'pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'},
-            'presentations': {'ppt', 'pptx', 'odp'},
-            'spreadsheets': {'xls', 'xlsx', 'ods', 'csv'},
-            'videos': {'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'},
-            'audio': {'mp3', 'wav', 'ogg', 'aac', 'm4a'},
-            'archives': {'zip', 'rar', '7z', 'tar', 'gz'}
+            'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg',
+            'pdf', 'doc', 'docx', 'txt', 'rtf', 'odt',
+            'ppt', 'pptx', 'odp', 'xls', 'xlsx', 'ods', 'csv',
+            'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
+            'mp3', 'wav', 'ogg', 'aac', 'm4a',
+            'zip', 'rar', '7z', 'tar', 'gz'
         }
         self.max_file_size = 100 * 1024 * 1024  # 100MB
-        
-        # Create upload directory
         os.makedirs(upload_folder, exist_ok=True)
+    
+    def secure_filename(self, filename: str) -> str:
+        """Make filename safe for filesystem"""
+        # Remove path components
+        filename = filename.split('/')[-1].split('\\')[-1]
+        # Keep only alphanumeric, dots, dashes, underscores
+        safe_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_')
+        return ''.join(c if c in safe_chars else '_' for c in filename)
     
     def is_allowed_file(self, filename: str) -> bool:
         """Check if file extension is allowed"""
         if '.' not in filename:
             return False
-        
         ext = filename.rsplit('.', 1)[1].lower()
-        all_extensions = set()
-        for extensions in self.allowed_extensions.values():
-            all_extensions.update(extensions)
-        
-        return ext in all_extensions
-    
-    def get_file_type(self, filename: str) -> str:
-        """Get file type category"""
-        if '.' not in filename:
-            return 'unknown'
-        
-        ext = filename.rsplit('.', 1)[1].lower()
-        for file_type, extensions in self.allowed_extensions.items():
-            if ext in extensions:
-                return file_type
-        return 'unknown'
+        return ext in self.allowed_extensions
     
     def save_uploaded_file(self, file_data: bytes, filename: str) -> Dict[str, Any]:
         """Save uploaded file locally"""
@@ -58,13 +46,11 @@ class FileManager:
             if len(file_data) > self.max_file_size:
                 return {"success": False, "error": "File too large (max 100MB)"}
             
-            # Generate unique filename
-            secure_name = secure_filename(filename)
+            secure_name = self.secure_filename(filename)
             unique_id = str(uuid.uuid4())[:8]
             final_filename = f"{unique_id}_{secure_name}"
             file_path = os.path.join(self.upload_folder, final_filename)
             
-            # Save file
             with open(file_path, 'wb') as f:
                 f.write(file_data)
             
@@ -74,77 +60,77 @@ class FileManager:
                 "original_name": filename,
                 "file_path": file_path,
                 "file_size": len(file_data),
-                "file_type": self.get_file_type(filename),
-                "mime_type": mimetypes.guess_type(filename)[0]
+                "mime_type": mimetypes.guess_type(filename)[0] or 'application/octet-stream'
             }
-            
         except Exception as e:
             return {"success": False, "error": str(e)}
     
     def upload_to_canvas(self, file_info: Dict[str, Any], course_id: int, folder_name: str = "Uploaded Files") -> Dict[str, Any]:
-        """Upload file to Canvas course"""
+        """Upload file to Canvas using proper 3-step process"""
         try:
-            # Canvas file upload API call
+            # Step 1: Tell Canvas about the file
             upload_url = f"{self.canvas.base_url}/api/v1/courses/{course_id}/files"
-            
-            # Step 1: Request upload URL
-            upload_data = {
+            upload_params = {
                 "name": file_info["original_name"],
                 "size": file_info["file_size"],
                 "content_type": file_info["mime_type"],
                 "parent_folder_path": folder_name
             }
             
-            response = requests.post(upload_url, headers=self.canvas.headers, data=upload_data)
+            response = requests.post(upload_url, headers=self.canvas.headers, data=upload_params)
             response.raise_for_status()
-            upload_info = response.json()
+            upload_data = response.json()
             
-            # Step 2: Upload file to Canvas
+            # Step 2: Upload file to Canvas storage
             with open(file_info["file_path"], 'rb') as f:
-                files = {'file': f}
+                files = {'file': (file_info["original_name"], f, file_info["mime_type"])}
                 upload_response = requests.post(
-                    upload_info['upload_url'],
-                    data=upload_info['upload_params'],
+                    upload_data['upload_url'],
+                    data=upload_data['upload_params'],
                     files=files
                 )
                 upload_response.raise_for_status()
             
-            # Step 3: Confirm upload
-            confirm_response = requests.post(upload_info['upload_url'], data=upload_info['upload_params'])
-            canvas_file = confirm_response.json()
+            # Step 3: Get file info from location header or response
+            if upload_response.status_code == 201:
+                canvas_file = upload_response.json()
+            elif 'Location' in upload_response.headers:
+                confirm_url = upload_response.headers['Location']
+                confirm_response = requests.get(confirm_url, headers=self.canvas.headers)
+                confirm_response.raise_for_status()
+                canvas_file = confirm_response.json()
+            else:
+                canvas_file = upload_response.json()
             
             return {
                 "success": True,
                 "canvas_file_id": canvas_file.get("id"),
                 "canvas_file_url": canvas_file.get("url"),
-                "display_name": canvas_file.get("display_name"),
-                "folder": folder_name
+                "display_name": canvas_file.get("display_name", file_info["original_name"])
             }
-            
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": f"Canvas upload failed: {str(e)}"}
     
     def create_assignment_with_file(self, course_id: int, assignment_name: str, file_info: Dict[str, Any], 
                                   points: int = 100, description: str = "") -> Dict[str, Any]:
         """Create Canvas assignment with uploaded file"""
         try:
-            # Upload file to Canvas first
             canvas_upload = self.upload_to_canvas(file_info, course_id, "Assignment Files")
-            
             if not canvas_upload["success"]:
                 return canvas_upload
             
-            # Create assignment with file attachment
-            assignment_description = f"{description}\n\n<p><strong>Assignment File:</strong></p>"
-            assignment_description += f'<p><a href="{canvas_upload["canvas_file_url"]}" target="_blank">'
-            assignment_description += f'{canvas_upload["display_name"]}</a></p>'
+            assignment_desc = f"{description}\n\n<p><strong>Assignment File:</strong> "
+            assignment_desc += f'<a href="{canvas_upload["canvas_file_url"]}">{canvas_upload["display_name"]}</a></p>'
             
-            assignment = self.canvas.create_assignment(
-                course_id=course_id,
-                name=assignment_name,
-                points=points,
-                description=assignment_description
-            )
+            assignment_data = {
+                "name": assignment_name,
+                "points_possible": points,
+                "description": assignment_desc,
+                "submission_types": ["online_upload"],
+                "published": True
+            }
+            
+            assignment = self.canvas.create_assignment(course_id, assignment_data)
             
             return {
                 "success": True,
@@ -152,7 +138,6 @@ class FileManager:
                 "file_info": canvas_upload,
                 "message": f"Assignment '{assignment_name}' created with file attachment"
             }
-            
         except Exception as e:
             return {"success": False, "error": str(e)}
     
@@ -160,13 +145,10 @@ class FileManager:
                           item_title: str = None) -> Dict[str, Any]:
         """Add uploaded file to Canvas module"""
         try:
-            # Upload file to Canvas
             canvas_upload = self.upload_to_canvas(file_info, course_id, "Module Files")
-            
             if not canvas_upload["success"]:
                 return canvas_upload
             
-            # Add file to module
             title = item_title or file_info["original_name"]
             module_item = self.canvas.add_module_item(
                 course_id=course_id,
@@ -182,23 +164,18 @@ class FileManager:
                 "file_info": canvas_upload,
                 "message": f"File '{title}' added to module"
             }
-            
         except Exception as e:
             return {"success": False, "error": str(e)}
     
     def submit_assignment(self, course_id: int, assignment_id: int, file_info: Dict[str, Any], 
                          comment: str = "") -> Dict[str, Any]:
-        """Submit assignment with file upload (student)"""
+        """Submit assignment with file upload"""
         try:
-            # Upload file to Canvas
             canvas_upload = self.upload_to_canvas(file_info, course_id, "Assignment Submissions")
-            
             if not canvas_upload["success"]:
                 return canvas_upload
             
-            # Submit assignment
             submission_url = f"{self.canvas.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions"
-            
             submission_data = {
                 "submission[submission_type]": "online_upload",
                 "submission[file_ids][]": canvas_upload["canvas_file_id"]
@@ -217,7 +194,6 @@ class FileManager:
                 "file_info": canvas_upload,
                 "message": f"Assignment submitted with file: {file_info['original_name']}"
             }
-            
         except Exception as e:
             return {"success": False, "error": str(e)}
     
@@ -229,12 +205,11 @@ class FileManager:
         except Exception as e:
             print(f"Failed to cleanup file {file_path}: {e}")
 
-# Global file manager instance
-file_manager = None
+_file_manager = None
 
 def get_file_manager(canvas: CanvasLMS) -> FileManager:
     """Get or create file manager instance"""
-    global file_manager
-    if file_manager is None:
-        file_manager = FileManager(canvas)
-    return file_manager
+    global _file_manager
+    if _file_manager is None:
+        _file_manager = FileManager(canvas)
+    return _file_manager

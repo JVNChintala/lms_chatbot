@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
+
 from openai import OpenAI
 from dotenv import load_dotenv
 from .base_inference import BaseInference
@@ -11,39 +12,25 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIInference(BaseInference):
-    """
-    Cost-optimized OpenAI inference for Canvas LMS.
-    - Uses gpt-4o-mini for intent classification, tool argument generation, and response formatting.
-    - Handles missing tool arguments interactively.
-    - Provides user-friendly, conversational responses.
-    """
+    """OpenAI Responses API with dict-compatible wrapper"""
 
     DEFAULT_MODEL = "gpt-4o-mini"
-    MAX_TOKENS_TOOL = 200
-    MAX_TOKENS_FINAL = 150
+    MAX_TOKENS = 300
+    MAX_FINAL_TOKENS = 150
 
     def __init__(self):
-        super().__init__()
+        self.name = self.__class__.__name__
         api_key = os.getenv("OPENAI_API_KEY")
         try:
-            self.client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
+            self.client = OpenAI(api_key=api_key) if api_key else None
         except Exception as e:
-            logger.error(f"Failed to initialize OpenAI client: {e}")
+            logger.error(f"OpenAI init failed: {e}")
             self.client = None
         self._final_usage: Optional[Dict[str, int]] = None
 
-    # ---------------------------
-    # Availability
-    # ---------------------------
     def is_available(self) -> bool:
-        if not self.client:
-            logger.warning("OpenAI client not configured")
-            return False
-        return True
+        return self.client is not None
 
-    # ---------------------------
-    # Public API
-    # ---------------------------
     def call_with_tools(
         self,
         system_prompt: str,
@@ -52,214 +39,171 @@ class OpenAIInference(BaseInference):
         force_tool: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self.client:
-            logger.error("OpenAI client not configured")
             return {"needs_tool": False, "content": "OpenAI not configured."}
+        return self._execute_response_call(system_prompt, messages, tools, force_tool)
 
-        try:
-            return self._execute_tool_call(
-                system_prompt=system_prompt,
-                messages=messages,
-                tools=tools,
-                model=self.DEFAULT_MODEL,
-                force_tool=force_tool,
-            )
-        except Exception as e:
-            logger.error(f"Tool call failed: {e}")
-            return {"needs_tool": False, "content": "I encountered an error processing your request."}
-
-    # ---------------------------
-    # Tool Execution with interactive argument filling
-    # ---------------------------
-    def _execute_tool_call(
+    def _execute_response_call(
         self,
         system_prompt: str,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]],
-        model: str,
         force_tool: Optional[str],
     ) -> Dict[str, Any]:
-        """
-        Executes OpenAI tool calling using a cost-effective model.
-        Prompts user for missing required arguments if any.
-        """
-        openai_tools = self._normalize_tools(tools)
+        normalized_tools = self._normalize_tools(tools)
+        input_messages = [{"role": "system", "content": system_prompt}] + messages
 
-        kwargs = {
-            "model": model,
-            "messages": [{"role": "system", "content": system_prompt}] + messages,
-            "max_tokens": self.MAX_TOKENS_TOOL,
+        request = {
+            "model": self.DEFAULT_MODEL,
+            "input": input_messages,
+            "max_output_tokens": self.MAX_TOKENS,
         }
 
-        if openai_tools:
-            kwargs["tools"] = openai_tools
+        if normalized_tools:
+            request["tools"] = normalized_tools
             if force_tool:
-                kwargs["tool_choice"] = {"type": "function", "function": {"name": force_tool}}
-            else:
-                kwargs["tool_choice"] = "auto"
+                request["tool_choice"] = "required"
 
         try:
-            response = self.client.chat.completions.create(**kwargs)
-            if not response or not response.choices:
-                logger.error("Invalid API response structure")
-                return {"needs_tool": False, "content": "API response error"}
-            
-            usage = self._extract_usage(response, model)
-            message = response.choices[0].message
+            response = self.client.responses.create(**request)
+            logger.info(f"OpenAI Response: output_text={response.output_text[:100] if response.output_text else 'None'}, output_items={len(response.output)}")
+            for idx, item in enumerate(response.output):
+                item_type = getattr(item, "type", None)
+                logger.info(f"  Item {idx}: type={item_type}, name={getattr(item, 'name', 'N/A')}")
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
-            return {"needs_tool": False, "content": "Service temporarily unavailable"}
+            return {"needs_tool": False, "content": "Service temporarily unavailable."}
 
-        if message.tool_calls:
-            tool_call = message.tool_calls[0]
-            print(f"[OPENAI_INFERENCE] Tool call detected: {tool_call.function.name}")
-            try:
-                tool_args = json.loads(tool_call.function.arguments or "{}")
-                print(f"[OPENAI_INFERENCE] Parsed tool args: {tool_args}")
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in tool arguments: {e}")
-                return {"needs_tool": False, "content": "Tool argument parsing error"}
+        self._final_usage = self._to_dict(response.usage, response.model)
 
-            # Always prompt user to confirm arguments
-            required_fields = self._get_required_fields(openai_tools, tool_call.function.name)
-            print(f"[OPENAI_INFERENCE] Required fields for {tool_call.function.name}: {required_fields}")
-            
-            if required_fields:
-                prompt_parts = []
-                if tool_args:
-                    prompt_parts.append("Please confirm:")
-                    for field, value in tool_args.items():
-                        if field in required_fields:
-                            prompt_parts.append(f"{field}: {value}")
+        for item in response.output:
+            item_type = getattr(item, "type", None)
+            if item_type in ("tool_call", "function_call"):
+                tool_name = getattr(item, "name", "")
+                tool_args_raw = getattr(item, "arguments", {}) or {}
                 
-                missing_fields = [f for f in required_fields if f not in tool_args]
-                print(f"[OPENAI_INFERENCE] Missing fields: {missing_fields}")
-                if missing_fields:
-                    prompt_parts.append(f"Please provide: {', '.join(missing_fields)}")
-                
-                confirmation_prompt = " ".join(prompt_parts)
-                print(f"[OPENAI_INFERENCE] Prompting user for confirmation: {confirmation_prompt}")
-                
+                # Parse JSON string if needed
+                if isinstance(tool_args_raw, str):
+                    try:
+                        tool_args = json.loads(tool_args_raw)
+                    except:
+                        tool_args = {}
+                else:
+                    tool_args = tool_args_raw
+
+                required_fields = self._get_required_fields(normalized_tools, tool_name)
+                missing = [f for f in required_fields if not tool_args.get(f)]
+
+                if missing:
+                    # Use OpenAI to generate conversational clarification
+                    clarification = self._generate_clarification(tool_name, missing, messages)
+                    return {
+                        "needs_tool": False,
+                        "content": clarification,
+                        "missing_args": missing,
+                        "usage": self._final_usage,
+                    }
+
                 return {
                     "needs_tool": True,
-                    "tool_name": tool_call.function.name,
+                    "tool_name": tool_name,
                     "tool_args": tool_args,
-                    "missing_args": missing_fields,
-                    "prompt_user": confirmation_prompt,
-                    "usage": usage,
+                    "usage": self._final_usage,
                 }
 
-            # No required fields, proceed directly
-            print(f"[OPENAI_INFERENCE] No required fields, proceeding with tool {tool_call.function.name}")
-            return {
-                "needs_tool": True,
-                "tool_name": tool_call.function.name,
-                "tool_args": tool_args,
-                "tool_call_id": tool_call.id,
-                "usage": usage,
-            }
-
-        print(f"[OPENAI_INFERENCE] No tool calls detected, returning conversational response")
         return {
             "needs_tool": False,
-            "content": message.content or "I am here to help with Canvas LMS.",
-            "usage": usage,
+            "content": response.output_text or "I'm here to help with Canvas LMS.",
+            "usage": self._final_usage,
         }
 
-    # ---------------------------
-    # Final response formatting (friendly)
-    # ---------------------------
     def get_final_response(self, tool_result: Dict[str, Any]) -> str:
-        """
-        Convert raw Canvas API result into a user-friendly, conversational response.
-        """
         if not self.client:
             return "Operation completed successfully."
 
+        result_str = json.dumps(tool_result)
+        if len(result_str) > 2000:
+            result_str = result_str[:2000] + "..."
+
+        prompt = f"Convert the following Canvas result into a friendly, non-technical summary for the user.\n\n{result_str}"
+
         try:
-            # Limit result size to prevent excessive token usage
-            result_str = json.dumps(tool_result)
-            if len(result_str) > 2000:
-                result_str = result_str[:2000] + "..."
-            
-            # Sanitized system prompt without exposing internal details
-            system_prompt = (
-                "Convert this result into a friendly summary. Do not show technical details.\n\n"
-                f"Result:\n{result_str}"
-            )
-
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model=self.DEFAULT_MODEL,
-                messages=[{"role": "system", "content": system_prompt}],
-                max_tokens=self.MAX_TOKENS_FINAL,
-                timeout=30
+                input=prompt,
+                max_output_tokens=self.MAX_FINAL_TOKENS,
             )
-
-            if not response or not response.choices:
-                return "Operation completed successfully."
-                
-            self._final_usage = self._extract_usage(response, self.DEFAULT_MODEL)
-            return response.choices[0].message.content or "Operation completed successfully."
+            self._final_usage = self._to_dict(response.usage, response.model)
+            return response.output_text or "Operation completed successfully."
         except Exception as e:
-            logger.error(f"Final response generation failed: {e}")
+            logger.error(f"Final response failed: {e}")
             return "Operation completed successfully."
 
     def get_final_usage(self) -> Optional[Dict[str, int]]:
         return self._final_usage
 
-    # ---------------------------
-    # Helpers
-    # ---------------------------
     def _normalize_tools(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         normalized = []
         for tool in tools:
-            try:
-                if "function" in tool:
-                    normalized.append(tool)
-                else:
-                    input_schema = tool.get("input_schema", {})
-                    normalized.append(
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": tool.get("name", "unknown"),
-                                "description": tool.get("description", ""),
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": input_schema.get("properties", {}),
-                                    "required": input_schema.get("required", []),
-                                    "additionalProperties": False,
-                                },
-                            },
-                        }
-                    )
-            except Exception as e:
-                logger.warning(f"Failed to normalize tool: {e}")
+            if "function" in tool:
+                func = tool["function"]
+                normalized.append({
+                    "type": "function",
+                    "name": func.get("name"),
+                    "description": func.get("description", ""),
+                    "parameters": func.get("parameters", {}),
+                })
                 continue
+            schema = tool.get("input_schema", {})
+            normalized.append({
+                "type": "function",
+                "name": tool.get("name"),
+                "description": tool.get("description", ""),
+                "parameters": {
+                    "type": "object",
+                    "properties": schema.get("properties", {}),
+                    "required": schema.get("required", []),
+                },
+            })
         return normalized
 
-    @staticmethod
-    def _extract_usage(response, model: str) -> Dict[str, int]:
-        if not response or not hasattr(response, 'usage'):
-            return {"model": model, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    def _generate_clarification(self, tool_name: str, missing: List[str], conversation: List[Dict[str, str]]) -> str:
+        """Use OpenAI to generate natural clarification request with context"""
+        if not self.client:
+            return f"I need more information: {', '.join(missing)}"
         
-        usage = response.usage
-        return {
-            "model": model,
-            "input_tokens": usage.prompt_tokens if usage else 0,
-            "output_tokens": usage.completion_tokens if usage else 0,
-            "total_tokens": usage.total_tokens if usage else 0,
-        }
+        # Build context-aware prompt
+        context = "\n".join([f"{m['role']}: {m['content']}" for m in conversation[-3:]])
+        prompt = (
+            f"The user wants to {tool_name.replace('_', ' ')} but didn't provide: {', '.join(missing)}.\n"
+            f"Recent conversation:\n{context}\n\n"
+            "Ask the user conversationally for the missing information. Be friendly and helpful."
+        )
+        
+        try:
+            response = self.client.responses.create(
+                model=self.DEFAULT_MODEL,
+                input=prompt,
+                max_output_tokens=100,
+            )
+            return response.output_text or f"Could you provide the {', '.join(missing)}?"
+        except:
+            return f"Could you provide the {', '.join(missing)}?"
 
     @staticmethod
     def _get_required_fields(tools: List[Dict[str, Any]], tool_name: str) -> List[str]:
-        """
-        Retrieve required fields for a tool from the normalized tools.
-        """
         for t in tools:
-            try:
-                func = t.get("function", {})
-                if func.get("name") == tool_name:
-                    return func.get("parameters", {}).get("required", [])
-            except (KeyError, TypeError):
-                continue
+            if t.get("name") == tool_name:
+                return t.get("parameters", {}).get("required", [])
         return []
+
+    @staticmethod
+    def _to_dict(usage_obj, model: str) -> Dict[str, int]:
+        """Convert typed usage object to dict for backward compatibility"""
+        if not usage_obj:
+            return {"model": model, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        return {
+            "model": model,
+            "input_tokens": getattr(usage_obj, "input_tokens", 0),
+            "output_tokens": getattr(usage_obj, "output_tokens", 0),
+            "total_tokens": getattr(usage_obj, "total_tokens", 0),
+        }

@@ -163,18 +163,14 @@ class CanvasLMS:
         response.raise_for_status()
         return response.json()
     
-    def create_assignment(self, course_id: int, name: str, points: int = 100, description: str = None, **kwargs) -> Dict:
+    def create_assignment(self, course_id: int, assignment_data: Dict) -> Dict:
         """Create an assignment in a course"""
         url = f"{self.base_url}/api/v1/courses/{course_id}/assignments"
-        data = {
-            "assignment[name]": name,
-            "assignment[points_possible]": points,
-            "assignment[published]": True
-        }
-        if description:
-            data["assignment[description]"] = description
-        for key, value in kwargs.items():
+        data = {}
+        for key, value in assignment_data.items():
             data[f"assignment[{key}]"] = value
+        if "published" not in assignment_data:
+            data["assignment[published]"] = True
         response = requests.post(url, headers=self.headers, data=data)
         response.raise_for_status()
         return response.json()
@@ -259,5 +255,69 @@ class CanvasLMS:
         """Search for users by name or email"""
         url = f"{self.base_url}/api/v1/accounts/{account_id}/users"
         response = requests.get(url, headers=self.headers, params={"search_term": search_term})
+        response.raise_for_status()
+        return response.json()
+    
+    def list_assignments(self, course_id: int) -> List[Dict]:
+        """List all assignments in a course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/assignments"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def get_assignment(self, course_id: int, assignment_id: int) -> Dict:
+        """Get a specific assignment"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def grade_assignment(self, course_id: int, assignment_id: int, user_id: int, grade: float, comment: str = None) -> Dict:
+        """Grade a student's assignment submission"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions/{user_id}"
+        data = {
+            "submission[posted_grade]": grade
+        }
+        if comment:
+            data["comment[text_comment]"] = comment
+        response = requests.put(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def submit_assignment(self, course_id: int, assignment_id: int, submission_type: str, body: str = None, url: str = None) -> Dict:
+        """Submit an assignment"""
+        api_url = f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions"
+        data = {
+            "submission[submission_type]": submission_type
+        }
+        if body:
+            data["submission[body]"] = body
+        if url:
+            data["submission[url]"] = url
+        response = requests.post(api_url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def list_enrollments(self, course_id: int) -> List[Dict]:
+        """List all enrollments in a course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/enrollments"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def get_user_profile(self, user_id: int) -> Dict:
+        """Get user profile information"""
+        url = f"{self.base_url}/api/v1/users/{user_id}/profile"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def update_course(self, course_id: int, updates: Dict) -> Dict:
+        """Update course settings"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}"
+        data = {}
+        for key, value in updates.items():
+            data[f"course[{key}]"] = value
+        response = requests.put(url, headers=self.headers, data=data)
         response.raise_for_status()
         return response.json()

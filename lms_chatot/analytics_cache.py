@@ -29,7 +29,7 @@ class AnalyticsCache:
         """Get lightweight analytics for chat integration"""
         try:
             if user_role == "admin":
-                courses = canvas.list_account_courses()[:5]  # Limit for performance
+                courses = canvas.list_account_courses()
                 return {
                     "total_courses": len(courses),
                     "recent_courses": [{"id": c.get("id"), "name": c.get("name")} for c in courses[:3]],
@@ -40,10 +40,10 @@ class AnalyticsCache:
                     ]
                 }
             elif user_role in ["teacher", "faculty", "instructor"]:
-                courses = canvas.list_courses()[:3]
+                courses = canvas.list_courses()
                 return {
                     "my_courses": len(courses),
-                    "recent_courses": [{"id": c.get("id"), "name": c.get("name")} for c in courses],
+                    "recent_courses": [{"id": c.get("id"), "name": c.get("name")} for c in courses[:3]],
                     "quick_actions": [
                         {"action": "create_assignment", "label": "📝 New Assignment", "prompt": "Create an assignment"},
                         {"action": "create_module", "label": "📖 Add Module", "prompt": "Create a module"},
@@ -51,10 +51,10 @@ class AnalyticsCache:
                     ]
                 }
             else:  # student
-                courses = canvas.list_courses()[:3]
+                courses = canvas.list_courses()
                 return {
                     "enrolled_courses": len(courses),
-                    "recent_courses": [{"id": c.get("id"), "name": c.get("name")} for c in courses],
+                    "recent_courses": [{"id": c.get("id"), "name": c.get("name")} for c in courses[:3]],
                     "quick_actions": [
                         {"action": "list_courses", "label": "📚 My Courses", "prompt": "Show my courses"},
                         {"action": "learning_plan", "label": "📋 Learning Plan", "prompt": "Generate my learning plan"},

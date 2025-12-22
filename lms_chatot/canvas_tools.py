@@ -27,19 +27,39 @@ class CanvasTools:
             "list_user_courses": self._list_user_courses,
             "get_course": self._get_course,
             "create_course": self._create_course,
+            "update_course": self._update_course,
             "publish_course": self._publish_course,
             "unpublish_course": self._unpublish_course,
             "list_modules": self._list_modules,
+            "get_module": self._get_module,
             "create_module": self._create_module,
+            "update_module": self._update_module,
+            "delete_module": self._delete_module,
             "list_assignments": self._list_assignments,
             "get_assignment": self._get_assignment,
             "create_assignment": self._create_assignment,
+            "update_assignment": self._update_assignment,
+            "delete_assignment": self._delete_assignment,
             "grade_assignment": self._grade_assignment,
             "submit_assignment": self._submit_assignment,
             "list_users": self._list_users,
+            "create_user": self._create_user,
             "enroll_user": self._enroll_user,
+            "unenroll_user": self._unenroll_user,
             "list_enrollments": self._list_enrollments,
             "get_user_profile": self._get_user_profile,
+            "list_announcements": self._list_announcements,
+            "create_announcement": self._create_announcement,
+            "list_discussions": self._list_discussions,
+            "create_discussion": self._create_discussion,
+            "list_quizzes": self._list_quizzes,
+            "create_quiz": self._create_quiz,
+            "list_pages": self._list_pages,
+            "create_page": self._create_page,
+            "list_files": self._list_files,
+            "upload_file": self._upload_file,
+            "get_grades": self._get_grades,
+            "view_gradebook": self._view_gradebook,
         }
 
     # ------------------------------------------------------------------
@@ -63,6 +83,7 @@ class CanvasTools:
             # CanvasToolSchemas.submit_assignment(),
             CanvasToolSchemas.enroll_user(),
             CanvasToolSchemas.list_users(),
+            CanvasToolSchemas.create_page(),
             # CanvasToolSchemas.list_enrollments(),
             # CanvasToolSchemas.get_user_profile(),
         ]
@@ -71,26 +92,28 @@ class CanvasTools:
 
         ROLE_MAP = {
             "student": {
-                "list_user_courses",
-                "get_course",
-                "list_modules",
-                "list_assignments",
-                "get_assignment",
-                "submit_assignment",
-                "get_user_profile",
+                "list_user_courses", "get_course", "list_modules", "get_module",
+                "list_assignments", "get_assignment", "submit_assignment",
+                "list_announcements", "list_discussions", "list_quizzes",
+                "list_pages", "list_files", "get_grades", "get_user_profile"
             },
             "teacher": {
-                t["function"]["name"] for t in tools
-            } - {"list_users"},
-            "faculty": {
-                t["function"]["name"] for t in tools
-            } - {"list_users"},
-            "instructor": {
-                t["function"]["name"] for t in tools
-            } - {"list_users"},
+                "list_user_courses", "get_course", "create_course", "update_course", "publish_course",
+                "list_modules", "get_module", "create_module", "update_module", "delete_module",
+                "list_assignments", "get_assignment", "create_assignment", "update_assignment", "delete_assignment", "grade_assignment",
+                "enroll_user", "list_enrollments",
+                "list_announcements", "create_announcement",
+                "list_discussions", "create_discussion",
+                "list_quizzes", "create_quiz",
+                "list_pages", "create_page",
+                "list_files", "upload_file",
+                "get_grades", "view_gradebook"
+            },
             "admin": {t["function"]["name"] for t in tools},
         }
-
+        ROLE_MAP['faculty'] = ROLE_MAP['teacher']
+        ROLE_MAP['instructor'] = ROLE_MAP['teacher']
+        
         allowed = ROLE_MAP.get(role, {"list_user_courses", "get_course"})
         return [t for t in tools if t["function"]["name"] in allowed]
 
@@ -104,8 +127,14 @@ class CanvasTools:
             return {"error": f"Unknown function: {function_name}"}
 
         try:
-            return handler(arguments)
+            result = handler(arguments)
+            print(f"[CANVAS_TOOLS] Tool: {function_name}")
+            print(f"[CANVAS_TOOLS] Result: {result}")
+            return result
         except Exception as exc:
+            print(f"[CANVAS_TOOLS] execute_tool exception: {exc}")
+            import traceback
+            traceback.print_exc()
             return {"error": str(exc)}
 
     # ------------------------------------------------------------------
@@ -143,6 +172,8 @@ class CanvasTools:
             course_code=args["course_code"],
             description=args.get("description"),
         )
+        print(f"[CANVAS_TOOLS] create_course result type: {type(course)}")
+        print(f"[CANVAS_TOOLS] create_course result: {course}")
 
         if (
             self.user_role in {"teacher", "faculty", "instructor"}
@@ -230,3 +261,63 @@ class CanvasTools:
     def _get_user_profile(self, args: dict):
         print(f"[CANVAS_TOOLS] [Arguments] {args}")
         return self.canvas.get_user_profile(args["user_id"])
+
+    def _update_course(self, args: dict):
+        return self.admin_canvas.update_course(args["course_id"], args)
+
+    def _update_assignment(self, args: dict):
+        return self.canvas.update_assignment(args["course_id"], args["assignment_id"], args)
+
+    def _delete_assignment(self, args: dict):
+        return self.canvas.delete_assignment(args["course_id"], args["assignment_id"])
+
+    def _get_module(self, args: dict):
+        return self.canvas.get_module(args["course_id"], args["module_id"])
+
+    def _update_module(self, args: dict):
+        return self.canvas.update_module(args["course_id"], args["module_id"], args)
+
+    def _delete_module(self, args: dict):
+        return self.canvas.delete_module(args["course_id"], args["module_id"])
+
+    def _create_user(self, args: dict):
+        return self.admin_canvas.create_user(1, args["name"], args["email"], args["login_id"])
+
+    def _unenroll_user(self, args: dict):
+        return self.admin_canvas.unenroll_user(args["course_id"], args["enrollment_id"])
+
+    def _list_announcements(self, args: dict):
+        return self.canvas.list_announcements(args["course_id"])
+
+    def _create_announcement(self, args: dict):
+        return self.canvas.create_announcement(args["course_id"], args["title"], args["message"])
+
+    def _list_discussions(self, args: dict):
+        return self.canvas.list_discussions(args["course_id"])
+
+    def _create_discussion(self, args: dict):
+        return self.canvas.create_discussion(args["course_id"], args["title"], args["message"])
+
+    def _list_quizzes(self, args: dict):
+        return self.canvas.list_quizzes(args["course_id"])
+
+    def _create_quiz(self, args: dict):
+        return self.canvas.create_quiz(args["course_id"], args["title"])
+
+    def _list_pages(self, args: dict):
+        return self.canvas.list_pages(args["course_id"])
+
+    def _create_page(self, args: dict):
+        return self.canvas.create_page(args["course_id"], args["title"], args.get("body", ""))
+
+    def _list_files(self, args: dict):
+        return self.canvas.list_files(args["course_id"])
+
+    def _upload_file(self, args: dict):
+        return self.canvas.upload_file(args["course_id"], args["file_name"])
+
+    def _get_grades(self, args: dict):
+        return self.canvas.get_grades(args["course_id"], args.get("user_id"))
+
+    def _view_gradebook(self, args: dict):
+        return self.canvas.view_gradebook(args["course_id"])

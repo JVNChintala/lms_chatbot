@@ -64,6 +64,8 @@ class InferenceRequest(BaseModel):
     user_role: Optional[str] = None
     canvas_user_id: Optional[int] = None
     conversation_id: Optional[int] = None
+    pending_tool: Optional[str] = None
+    pending_tool_def: Optional[Dict[str, Any]] = None
 
 
 class LoginRequest(BaseModel):
@@ -148,6 +150,8 @@ async def inference(req: InferenceRequest):
                 req.messages[:-1],
                 user_role,
                 user_info,
+                pending_tool=req.pending_tool,
+                pending_tool_def=req.pending_tool_def,
             )
 
             if conv_id:
@@ -156,8 +160,13 @@ async def inference(req: InferenceRequest):
             return {
                 "content": result["content"],
                 "model": req.model,
-                "usage": {},
+                "usage": result.get("usage", {}),
                 "session_id": session_id,
+                "analytics": result.get("analytics", {"quick_actions": []}),
+                "tool_used": result.get("tool_used", False),
+                "inference_system": result.get("inference_system", "OpenAI"),
+                "pending_tool": result.get("pending_tool"),
+                "pending_tool_def": result.get("pending_tool_def"),
             }
 
         # ---- Fallback OpenAI inference
@@ -308,6 +317,36 @@ async def update_title(conversation_id: int, payload: Dict[str, Any]):
 @app.get("/usage-stats")
 async def usage_stats(canvas_user_id: Optional[int] = None, days: int = 30):
     return {"usage_stats": usage_tracker.get_usage_stats(canvas_user_id, days)}
+
+
+@app.get("/analytics")
+async def get_analytics(user_role: str, canvas_user_id: Optional[int] = None):
+    """Get Canvas analytics for dashboard"""
+    try:
+        if not CANVAS_URL or not CANVAS_TOKEN:
+            return {"analytics": {"quick_actions": []}}
+        
+        from analytics_cache import analytics_cache
+        
+        # Check cache first
+        cached = analytics_cache.get_cached_analytics(user_role, canvas_user_id)
+        if cached:
+            return {"analytics": cached}
+        
+        # Generate fresh analytics
+        canvas = CanvasLMS(
+            CANVAS_URL,
+            CANVAS_TOKEN,
+            as_user_id=None if user_role == "admin" else canvas_user_id,
+        )
+        analytics = analytics_cache.get_quick_analytics(canvas, user_role)
+        
+        # Cache the result
+        analytics_cache.cache_analytics(user_role, analytics, canvas_user_id)
+        
+        return {"analytics": analytics}
+    except Exception as e:
+        return {"analytics": {"quick_actions": [], "error": str(e)}}
 
 
 @app.get("/dashboard-widgets")
