@@ -14,7 +14,7 @@
         .user-info { display: flex; align-items: center; gap: 15px; }
         .role-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px; }
         .logout-btn { background: white; color: #667eea; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
-        .container { display: flex; height: calc(100vh - 60px); }
+        .container { display: flex; height: calc(100vh - 60px); overflow: hidden; }
         .sidebar { width: 250px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
         .nav-section { padding: 20px; border-bottom: 1px solid #e5e7eb; }
         .nav-section ul { list-style: none; }
@@ -106,7 +106,7 @@
                     </ul>
                 </div>
             </div>
-            <div class="main-content">
+            <div class="main-content" style="position: relative; overflow: hidden;">
                 <div v-if="currentView === 'dashboard'" class="dashboard-view">
                     <h2 style="margin-bottom: 20px; color: #1f2937;">📊 Dashboard Overview</h2>
                     <div v-if="analytics" class="analytics-dashboard">
@@ -153,85 +153,118 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="currentView === 'chat'" class="chat-container" style="display: flex; height: 100%;">
-                    <!-- Conversations Sidebar -->
-                    <div class="chat-conversations-sidebar" 
-                         :style="{ width: showConversations ? '280px' : '60px', transition: 'width 0.3s', background: '#f8fafc', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }">
-                        
-                        <!-- Toggle Button -->
-                        <div style="padding: 15px; borderBottom: '1px solid #e5e7eb'; textAlign: 'center';">
-                            <button @click="showConversations = !showConversations" 
-                                    style="background: #2563eb; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; width: 100%;">
-                                {{ showConversations ? '◀️' : '💬' }}
-                            </button>
+                <div v-if="currentView === 'chat'" class="chat-container" style="display: flex; height: 100%; position: relative;">
+                    <!-- Main Chat Area -->
+                    <div style="flex: 1; display: flex; flex-direction: column; background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);">
+                        <div class="chat-header" style="padding: 20px 30px; border-bottom: 2px solid #e5e7eb; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <button @click="showConversations = !showConversations" 
+                                            style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; box-shadow: 0 2px 6px rgba(99,102,241,0.3); transition: all 0.2s;"
+                                            @mouseover="$event.target.style.transform = 'scale(1.05)'"
+                                            @mouseout="$event.target.style.transform = 'scale(1)'">
+                                        {{ showConversations ? '◀️' : '💬' }}
+                                    </button>
+                                    <div>
+                                        <h2 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                                            <span style="font-size: 24px;">🤖</span> Canvas AI Assistant
+                                        </h2>
+                                        <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0 0;">Ask me anything about your courses and assignments</p>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button v-if="userRole !== 'student'" @click="showFileUpload = !showFileUpload" 
+                                            style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; box-shadow: 0 2px 6px rgba(59,130,246,0.3); transition: all 0.2s;"
+                                            @mouseover="$event.target.style.transform = 'translateY(-2px)'; $event.target.style.boxShadow = '0 4px 12px rgba(59,130,246,0.4)'"
+                                            @mouseout="$event.target.style.transform = 'translateY(0)'; $event.target.style.boxShadow = '0 2px 6px rgba(59,130,246,0.3)'">
+                                        {{ showFileUpload ? '❌ Close' : '📁 Upload' }}
+                                    </button>
+                                    <button @click="clearCurrentChat" 
+                                            style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; box-shadow: 0 2px 6px rgba(239,68,68,0.3); transition: all 0.2s;"
+                                            @mouseover="$event.target.style.transform = 'translateY(-2px)'; $event.target.style.boxShadow = '0 4px 12px rgba(239,68,68,0.4)'"
+                                            @mouseout="$event.target.style.transform = 'translateY(0)'; $event.target.style.boxShadow = '0 2px 6px rgba(239,68,68,0.3)'">
+                                        🗑️ Clear
+                                    </button>
+                                </div>
+                            </div>
                         </div>
+                    
+                    <!-- Conversations Sidebar Overlay -->
+                    <div v-if="showConversations" 
+                         @click="showConversations = false"
+                         style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 10; transition: opacity 0.3s;">
+                    </div>
+                    
+                    <div class="chat-conversations-sidebar" 
+                         @click.stop
+                         :style="{ 
+                             position: 'absolute',
+                             top: '0',
+                             left: showConversations ? '0' : '-320px',
+                             bottom: '0',
+                             width: '320px', 
+                             transition: 'left 0.3s ease', 
+                             background: 'linear-gradient(180deg, #f8fafc 0%, #e5e7eb 100%)', 
+                             borderRight: '2px solid #cbd5e1', 
+                             display: 'flex', 
+                             flexDirection: 'column',
+                             boxShadow: showConversations ? '4px 0 16px rgba(0,0,0,0.2)' : 'none',
+                             zIndex: 20
+                         }">
                         
                         <!-- Conversations List -->
-                        <div v-if="showConversations" style="flex: 1; overflow-y: auto; padding: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <h3 style="font-size: 14px; font-weight: 600; color: #1f2937;">💬 Conversations</h3>
+                        <div style="flex: 1; overflow-y: auto; padding: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="font-size: 16px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 20px;">💬</span> Chats
+                                </h3>
                                 <button @click="newConversation" 
-                                        style="background: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">
-                                    + New
+                                        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; box-shadow: 0 2px 4px rgba(16,185,129,0.3); transition: all 0.2s;"
+                                        @mouseover="$event.target.style.transform = 'translateY(-1px)'; $event.target.style.boxShadow = '0 4px 8px rgba(16,185,129,0.4)'"
+                                        @mouseout="$event.target.style.transform = 'translateY(0)'; $event.target.style.boxShadow = '0 2px 4px rgba(16,185,129,0.3)'">
+                                    ✨ New
                                 </button>
                             </div>
                             
                             <div v-for="conv in conversations" :key="conv.id" 
                                  @click="loadConversation(conv.id)"
                                  :style="{ 
-                                     padding: '10px', 
-                                     marginBottom: '8px', 
-                                     borderRadius: '6px', 
+                                     position: 'relative',
+                                     padding: '14px', 
+                                     marginBottom: '10px', 
+                                     borderRadius: '10px', 
                                      cursor: 'pointer', 
-                                     border: '1px solid #e5e7eb', 
-                                     background: conv.id === currentConversationId ? '#dbeafe' : 'white',
-                                     borderColor: conv.id === currentConversationId ? '#2563eb' : '#e5e7eb',
-                                     transition: 'all 0.2s'
+                                     border: '2px solid transparent',
+                                     background: conv.id === currentConversationId ? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' : 'white',
+                                     borderColor: conv.id === currentConversationId ? '#3b82f6' : 'transparent',
+                                     transition: 'all 0.2s ease',
+                                     boxShadow: conv.id === currentConversationId ? '0 4px 12px rgba(59,130,246,0.3)' : '0 2px 4px rgba(0,0,0,0.05)'
                                  }"
-                                 @mouseover="$event.target.style.background = conv.id === currentConversationId ? '#dbeafe' : '#f9fafb'"
-                                 @mouseout="$event.target.style.background = conv.id === currentConversationId ? '#dbeafe' : 'white'">
-                                <div style="font-weight: 600; font-size: 12px; color: #1f2937; margin-bottom: 4px;">{{ conv.title }}</div>
-                                <div style="font-size: 10px; color: #6b7280;">{{ formatDate(conv.updated_at) }}</div>
+                                 @mouseover="$event.currentTarget.style.transform = 'translateX(4px)'; $event.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'"
+                                 @mouseout="$event.currentTarget.style.transform = 'translateX(0)'; $event.currentTarget.style.boxShadow = conv.id === currentConversationId ? '0 4px 12px rgba(59,130,246,0.3)' : '0 2px 4px rgba(0,0,0,0.05)'">
+                                <div style="font-weight: 600; font-size: 13px; color: #1f2937; margin-bottom: 6px; padding-right: 24px; line-height: 1.4;">{{ conv.title }}</div>
+                                <div style="font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 4px;">
+                                    <span>🕒</span> {{ formatDate(conv.updated_at) }}
+                                </div>
                                 <button @click.stop="deleteConversation(conv.id)" 
-                                        style="position: absolute; right: 8px; top: 8px; background: #ef4444; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; opacity: 0.7;"
-                                        @mouseover="$event.target.style.opacity = '1'"
-                                        @mouseout="$event.target.style.opacity = '0.7'">
+                                        style="position: absolute; right: 10px; top: 10px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; box-shadow: 0 2px 4px rgba(239,68,68,0.3); transition: all 0.2s;"
+                                        @mouseover="$event.target.style.transform = 'scale(1.1)'; $event.target.style.boxShadow = '0 4px 8px rgba(239,68,68,0.5)'"
+                                        @mouseout="$event.target.style.transform = 'scale(1)'; $event.target.style.boxShadow = '0 2px 4px rgba(239,68,68,0.3)'">
                                     ×
                                 </button>
                             </div>
                         </div>
                         
                         <!-- Conversation Stats -->
-                        <div v-if="showConversations" style="padding: 10px; border-top: 1px solid #e5e7eb; background: #f1f5f9;">
-                            <div style="font-size: 11px; color: #64748b; text-align: center;">
-                                {{ conversations.length }} conversations
+                        <div style="padding: 15px; border-top: 2px solid #cbd5e1; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);">
+                            <div style="font-size: 12px; color: #475569; text-align: center; font-weight: 600;">
+                                📊 {{ conversations.length }} conversation{{ conversations.length !== 1 ? 's' : '' }}
                             </div>
-                            <div style="font-size: 10px; color: #94a3b8; text-align: center; margin-top: 2px;">
-                                {{ messages.length }} messages in current chat
+                            <div style="font-size: 11px; color: #64748b; text-align: center; margin-top: 4px;">
+                                💬 {{ messages.length }} message{{ messages.length !== 1 ? 's' : '' }} in current
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Main Chat Area -->
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <div class="chat-header" style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <h2>🤖 Canvas AI Assistant</h2>
-                                    <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Ask me anything about your courses and assignments</p>
-                                </div>
-                                <div style="display: flex; gap: 10px;">
-                                    <button v-if="userRole !== 'student'" @click="showFileUpload = !showFileUpload" 
-                                            style="background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                        {{ showFileUpload ? '❌ Close Upload' : '📁 Upload Files' }}
-                                    </button>
-                                    <button @click="clearCurrentChat" 
-                                            style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                        🗑️ Clear Chat
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                     
                     <!-- File Upload Widget -->
                     <div v-if="showFileUpload" class="file-upload-widget" 

@@ -49,10 +49,6 @@
             <div class="error-message" id="errorMessage"></div>
             <div class="success-message" id="successMessage"></div>
         </form>
-        <div class="demo-info">
-            <strong>Demo Mode:</strong> Default admin login: username=<code>admin</code>, password=<code>admin123</code><br>
-            Admins can create teacher and student users through the chatbot.
-        </div>
     </div>
 
     <script>
@@ -113,9 +109,6 @@
                 }
                 
                 if (data.token) {
-                    // Show success message
-                    showSuccess('Login successful! Redirecting to dashboard...');
-                    
                     // Store credentials
                     localStorage.setItem('canvas_token', data.token);
                     localStorage.setItem('canvas_role', data.role);
@@ -124,10 +117,8 @@
                         localStorage.setItem('canvas_user_id', data.canvas_user_id);
                     }
                     
-                    // Redirect after short delay to show success message
-                    setTimeout(() => {
-                        window.location.href = '/canvas-dashboard';
-                    }, 1000);
+                    // Redirect immediately
+                    window.location.href = '/canvas-dashboard';
                 } else {
                     hideLoading();
                     showError('Login failed. Please check your credentials.');
