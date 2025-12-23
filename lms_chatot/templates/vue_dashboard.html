@@ -155,8 +155,8 @@
                 </div>
                 <div v-if="currentView === 'chat'" class="chat-container" style="display: flex; height: 100%; position: relative;">
                     <!-- Main Chat Area -->
-                    <div style="flex: 1; display: flex; flex-direction: column; background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);">
-                        <div class="chat-header" style="padding: 20px 30px; border-bottom: 2px solid #e5e7eb; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <div style="flex: 1; display: flex; flex-direction: column; background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%); min-height: 0;">
+                        <div class="chat-header" style="padding: 20px 30px; border-bottom: 2px solid #e5e7eb; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex-shrink: 0;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <button @click="showConversations = !showConversations" 
@@ -317,7 +317,7 @@
                             📄 Supported: PDF, DOC, TXT, Images, Videos, Presentations (Max 100MB)
                         </div>
                     </div>
-                    <div class="chat-box" ref="chatBox">
+                    <div class="chat-box" ref="chatBox" style="flex: 1; overflow-y: auto; padding: 20px; min-height: 0;">
                         <div v-for="(message, index) in messages" :key="index" 
                              class="message" :class="message.role">
                             <div class="message-content" v-html="renderMarkdown(message.content)"></div>
@@ -328,7 +328,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="input-area">
+                    <div class="input-area" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; flex-shrink: 0;">
                         <input v-model="userInput" @keypress.enter="sendMessage" placeholder="Type your message..." />
                         <button @click="sendMessage" :disabled="isLoading">Send</button>
                     </div>
