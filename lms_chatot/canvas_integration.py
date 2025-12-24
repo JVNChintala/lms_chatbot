@@ -1,6 +1,5 @@
 import requests
 from typing import List, Dict, Optional
-from canvas_api_validator import CanvasAPIValidator
 
 class CanvasLMS:
     def __init__(self, base_url: str, access_token: str, as_user_id: int = None):
@@ -29,20 +28,11 @@ class CanvasLMS:
         try:
             while url:
                 response = requests.get(url, headers=self.headers, params=params)
-                result = CanvasAPIValidator.validate_response(response, "list_courses")
-                
-                if not result["success"]:
-                    print(f"[CANVAS] Error: {result['error']}")
-                    return []
-                
-                batch = result["data"]
-                courses.extend(batch)
-                
+                response.raise_for_status()
+                courses.extend(response.json())
                 url = response.links.get('next', {}).get('url')
                 params = None
-            
             return courses
-            
         except Exception as e:
             print(f"[CANVAS] Exception in list_courses: {str(e)}")
             return []
@@ -66,8 +56,8 @@ class CanvasLMS:
             
         try:
             response = requests.post(url, headers=self.headers, data=data)
-            result = CanvasAPIValidator.validate_response(response, "create_course")
-            return CanvasAPIValidator.format_tool_response(result, "create_course")
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
             return {"error": f"Failed to create course: {str(e)}"}
     
@@ -77,12 +67,8 @@ class CanvasLMS:
         
         try:
             response = requests.get(url, headers=self.headers)
-            result = CanvasAPIValidator.validate_response(response, "list_modules")
-            
-            if result["success"]:
-                return result["data"]
-            else:
-                return [{"error": result["error"]}]
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
             return [{"error": f"Failed to list modules: {str(e)}"}]
     
@@ -220,6 +206,65 @@ class CanvasLMS:
         response.raise_for_status()
         return response.json()
     
+    def list_quizzes(self, course_id: int) -> List[Dict]:
+        """List all quizzes in a course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/quizzes"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def list_module_items(self, course_id: int, module_id: int) -> List[Dict]:
+        """List all items in a module"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/modules/{module_id}/items"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def list_pages(self, course_id: int) -> List[Dict]:
+        """List all pages in a course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/pages"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def create_quiz(self, course_id: int, title: str, description: str = "", quiz_type: str = "assignment") -> Dict:
+        """Create a quiz in a course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/quizzes"
+        data = {
+            "quiz[title]": title,
+            "quiz[description]": description,
+            "quiz[quiz_type]": quiz_type,
+            "quiz[published]": True
+        }
+        response = requests.post(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def create_quiz_question(self, course_id: int, quiz_id: int, question_name: str, question_text: str, question_type: str = "multiple_choice_question", points_possible: int = 1, answers: List[Dict] = None) -> Dict:
+        """Create a question in a quiz"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions"
+        data = {
+            "question[question_name]": question_name,
+            "question[question_text]": question_text,
+            "question[question_type]": question_type,
+            "question[points_possible]": points_possible
+        }
+        if answers:
+            for i, answer in enumerate(answers):
+                data[f"question[answers][{i}][answer_text]"] = answer.get("text", "")
+                data[f"question[answers][{i}][answer_weight]"] = answer.get("weight", 0)
+        response = requests.post(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def update_course(self, course_id: int, updates: Dict) -> Dict:
+        """Update course details"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}"
+        data = {f"course[{k}]": v for k, v in updates.items()}
+        response = requests.put(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
     def create_announcement(self, course_id: int, title: str, message: str) -> Dict:
         """Create an announcement"""
         url = f"{self.base_url}/api/v1/courses/{course_id}/discussion_topics"
@@ -301,6 +346,13 @@ class CanvasLMS:
     def list_enrollments(self, course_id: int) -> List[Dict]:
         """List all enrollments in a course"""
         url = f"{self.base_url}/api/v1/courses/{course_id}/enrollments"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def list_course_users(self, course_id: int) -> List[Dict]:
+        """List all users enrolled in a course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/users"
         response = requests.get(url, headers=self.headers, params={"per_page": 100})
         response.raise_for_status()
         return response.json()
