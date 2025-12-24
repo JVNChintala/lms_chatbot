@@ -76,6 +76,43 @@ class CanvasToolSchemas:
             },
         }
 
+    @staticmethod
+    def unpublish_course() -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "unpublish_course",
+                "description": "Unpublish a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def update_course() -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "update_course",
+                "description": "Update course details like name, code, or description",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "name": {"type": "string"},
+                        "course_code": {"type": "string"},
+                        "description": {"type": "string"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
     # ------------------------------------------------------------------
     # Modules
     # ------------------------------------------------------------------
@@ -261,6 +298,54 @@ class CanvasToolSchemas:
         }
 
     # ------------------------------------------------------------------
+    # Discussions
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def create_discussion() -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_discussion",
+                "description": "Create a discussion topic in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "title": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                    "required": ["course_id", "title", "message"],
+                },
+            },
+        }
+
+    # ------------------------------------------------------------------
+    # Quizzes
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def create_quiz() -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_quiz",
+                "description": "Create a quiz in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "title": {"type": "string"},
+                        "description": {"type": "string"},
+                        "quiz_type": {
+                            "type": "string",
+                            "description": "practice_quiz, assignment, or graded_survey",
+                        },
+                    },
+                    "required": ["course_id", "title"],
+                },
+            },
+        }# ------------------------------------------------------------------
     # Pages
     # ------------------------------------------------------------------
 
@@ -651,6 +736,134 @@ class CanvasToolSchemas:
                         "course_id": {"type": "integer", "description": "Course ID"},
                     },
                     "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def create_quiz_question():
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_quiz_question",
+                "description": "Create a question in a quiz",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "quiz_id": {"type": "integer", "description": "Quiz ID"},
+                        "question_name": {"type": "string", "description": "Question name"},
+                        "question_text": {"type": "string", "description": "Question text"},
+                        "question_type": {"type": "string", "description": "Question type (multiple_choice_question, true_false_question, essay_question)"},
+                        "points_possible": {"type": "integer", "description": "Points possible"},
+                        "answers": {
+                            "type": "array",
+                            "description": "Array of answer objects with text and weight (100 for correct, 0 for incorrect)",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string"},
+                                    "weight": {"type": "integer"}
+                                }
+                            }
+                        }
+                    },
+                    "required": ["course_id", "quiz_id", "question_name", "question_text"],
+                },
+            },
+        }
+
+    @staticmethod
+    def add_module_item():
+        return {
+            "type": "function",
+            "function": {
+                "name": "add_module_item",
+                "description": "Add an item (assignment, quiz, page, etc.) to a module",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "module_id": {"type": "integer", "description": "Module ID"},
+                        "item_type": {"type": "string", "description": "Type: Assignment, Quiz, Page, Discussion, ExternalUrl, ExternalTool"},
+                        "content_id": {"type": "integer", "description": "ID of the content item"},
+                        "title": {"type": "string", "description": "Display title for the item"},
+                    },
+                    "required": ["course_id", "module_id", "item_type", "content_id", "title"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_module_items():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_module_items",
+                "description": "List all items in a module",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "module_id": {"type": "integer", "description": "Module ID"},
+                    },
+                    "required": ["course_id", "module_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_pages():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_pages",
+                "description": "List all pages in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def list_course_users():
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_course_users",
+                "description": "List all users enrolled in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def create_multiple_modules():
+        return {
+            "type": "function",
+            "function": {
+                "name": "create_multiple_modules",
+                "description": "Create multiple modules at once in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "module_names": {
+                            "type": "array",
+                            "description": "Array of module names to create",
+                            "items": {"type": "string"}
+                        },
+                    },
+                    "required": ["course_id", "module_names"],
                 },
             },
         }
