@@ -101,7 +101,7 @@
                         <li>📚 Courses</li>
                         <li>📅 Calendar</li>
                         <li>📧 Inbox</li>
-                        <li @click="showChat" :class="{ active: currentView === 'chat' }">🤖 AI Assistant</li>
+                        <li @click="showChat" :class="{ active: currentView === 'chat' }">🎓 AI Assistant</li>
                         <li>⚙️ Account</li>
                     </ul>
                 </div>
@@ -167,7 +167,7 @@
                                     </button>
                                     <div>
                                         <h2 style="display: flex; align-items: center; gap: 8px; margin: 0;">
-                                            <span style="font-size: 24px;">🤖</span> Canvas AI Assistant
+                                            <span style="font-size: 24px;">🎓</span> Canvas AI Assistant
                                         </h2>
                                         <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0 0;">Ask me anything about your courses and assignments</p>
                                     </div>
@@ -281,7 +281,7 @@
                             <div style="margin: 10px 0;">
                                 <select v-model="uploadType" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.2); color: white;">
                                     <option value="assignment">Create Assignment</option>
-                                    <option value="module">Add to Module</option>
+                                    <option value="module">Add File to Module</option>
                                     <option value="submission" v-if="userRole === 'student'">Submit Assignment</option>
                                 </select>
                             </div>
@@ -638,6 +638,8 @@
                     } finally {
                         this.isLoading = false;
                         this.$nextTick(() => this.scrollToBottom());
+                        // Refresh analytics after message to update course count
+                        await this.loadAnalytics();
                     }
                 },
                 handleMetricClick(key) {
