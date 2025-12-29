@@ -9,7 +9,7 @@ if sys.platform == 'win32':
     sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
     sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lms_chatot'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../lms_chatot'))
 from canvas_agent import CanvasAgent
 
 load_dotenv()

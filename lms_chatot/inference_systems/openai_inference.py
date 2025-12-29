@@ -15,8 +15,8 @@ class OpenAIInference(BaseInference):
     """OpenAI Responses API with dict-compatible wrapper"""
 
     DEFAULT_MODEL = "gpt-4o-mini"
-    MAX_TOKENS = 300
-    MAX_FINAL_TOKENS = 150
+    MAX_TOKENS = 400
+    # MAX_FINAL_TOKENS = 600
 
     def __init__(self):
         self.name = self.__class__.__name__
@@ -65,10 +65,10 @@ class OpenAIInference(BaseInference):
 
         try:
             response = self.client.responses.create(**request)
-            logger.info(f"OpenAI Response: output_text={response.output_text[:100] if response.output_text else 'None'}, output_items={len(response.output)}")
+            print(f"OpenAI Response: output_text={response.output_text[:100] if response.output_text else 'None'}, output_items={len(response.output)}")
             for idx, item in enumerate(response.output):
                 item_type = getattr(item, "type", None)
-                logger.info(f"  Item {idx}: type={item_type}, name={getattr(item, 'name', 'N/A')}")
+                print(f"  Item {idx}: type={item_type}, name={getattr(item, 'name', 'N/A')}")
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
             return {"needs_tool": False, "content": "Service temporarily unavailable."}
@@ -116,27 +116,27 @@ class OpenAIInference(BaseInference):
             "usage": self._final_usage,
         }
 
-    def get_final_response(self, tool_result: Dict[str, Any]) -> str:
-        if not self.client:
-            return "Operation completed successfully."
+    # def get_final_response(self, tool_result: Dict[str, Any]) -> str:
+    #     if not self.client:
+    #         return "Operation completed successfully."
 
-        result_str = json.dumps(tool_result)
-        if len(result_str) > 2000:
-            result_str = result_str[:2000] + "..."
+    #     result_str = json.dumps(tool_result)
+    #     if len(result_str) > 2000:
+    #         result_str = result_str[:2000] + "..."
 
-        prompt = f"Convert the following Canvas result into a friendly, non-technical summary for the user.\n\n{result_str}"
+    #     prompt = f"Convert the following Canvas result into a friendly, non-technical summary for the user.\n\n{result_str}"
 
-        try:
-            response = self.client.responses.create(
-                model=self.DEFAULT_MODEL,
-                input=prompt,
-                max_output_tokens=self.MAX_FINAL_TOKENS,
-            )
-            self._final_usage = self._to_dict(response.usage, response.model)
-            return response.output_text or "Operation completed successfully."
-        except Exception as e:
-            logger.error(f"Final response failed: {e}")
-            return "Operation completed successfully."
+    #     try:
+    #         response = self.client.responses.create(
+    #             model=self.DEFAULT_MODEL,
+    #             input=prompt,
+    #             max_output_tokens=self.MAX_FINAL_TOKENS,
+    #         )
+    #         self._final_usage = self._to_dict(response.usage, response.model)
+    #         return response.output_text or "Operation completed successfully."
+    #     except Exception as e:
+    #         logger.error(f"Final response failed: {e}")
+    #         return "Operation completed successfully."
 
     def get_final_usage(self) -> Optional[Dict[str, int]]:
         return self._final_usage
@@ -168,8 +168,10 @@ class OpenAIInference(BaseInference):
 
     def _generate_clarification(self, tool_name: str, missing: List[str], conversation: List[Dict[str, str]]) -> str:
         """Use OpenAI to generate natural clarification request with context"""
+        default_msg = f"Could you provide the {', '.join(missing)}?"
+        
         if not self.client:
-            return f"I need more information: {', '.join(missing)}"
+            return default_msg
         
         # Build context-aware prompt
         context = "\n".join([f"{m['role']}: {m['content']}" for m in conversation[-3:]])
@@ -185,9 +187,10 @@ class OpenAIInference(BaseInference):
                 input=prompt,
                 max_output_tokens=100,
             )
-            return response.output_text or f"Could you provide the {', '.join(missing)}?"
-        except:
-            return f"Could you provide the {', '.join(missing)}?"
+            return response.output_text or default_msg
+        except Exception as e:
+            logger.warning(f"Clarification generation failed: {e}")
+            return default_msg
 
     @staticmethod
     def _get_required_fields(tools: List[Dict[str, Any]], tool_name: str) -> List[str]:
@@ -197,10 +200,20 @@ class OpenAIInference(BaseInference):
         return []
 
     @staticmethod
-    def _to_dict(usage_obj, model: str) -> Dict[str, int]:
-        """Convert typed usage object to dict for backward compatibility"""
+    def _to_dict(usage_obj: Any, model: str) -> Dict[str, int]:
+        """Convert typed usage object to dict consistently"""
         if not usage_obj:
             return {"model": model, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            
+        # Handle both pydantic objects and dicts
+        if isinstance(usage_obj, dict):
+            return {
+                "model": model,
+                "input_tokens": usage_obj.get("input_tokens", 0),
+                "output_tokens": usage_obj.get("output_tokens", 0),
+                "total_tokens": usage_obj.get("total_tokens", 0),
+            }
+            
         return {
             "model": model,
             "input_tokens": getattr(usage_obj, "input_tokens", 0),

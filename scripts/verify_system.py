@@ -54,23 +54,23 @@ def check_dependencies():
     """Check required Python packages"""
     print_section("Dependencies")
     
-    required_packages = [
-        'fastapi',
-        'uvicorn',
-        'openai',
-        'requests',
-        'python-dotenv',
-        'python-jose',
-        'passlib'
-    ]
+    package_map = {
+        'fastapi': 'fastapi',
+        'uvicorn': 'uvicorn',
+        'openai': 'openai',
+        'requests': 'requests',
+        'python-dotenv': 'dotenv',
+        'python-jose': 'jose',
+        'passlib': 'passlib'
+    }
     
     all_installed = True
-    for package in required_packages:
+    for package, module in package_map.items():
         try:
-            __import__(package.replace('-', '_'))
+            __import__(module)
             print_status(f"{package}", True)
         except ImportError:
-            print_status(f"{package}", False)
+            print_status(f"{package} (module: {module})", False)
             all_installed = False
     
     return all_installed
@@ -84,7 +84,7 @@ def check_files():
         'lms_chatot/canvas_agent.py',
         'lms_chatot/canvas_integration.py',
         'lms_chatot/canvas_tools.py',
-        'lms_chatot/intent_classifier.py',
+
         'lms_chatot/analytics_cache.py',
         'lms_chatot/inference_systems/openai_inference.py',
         'lms_chatot/templates/vue_dashboard.html',
@@ -106,13 +106,15 @@ def check_imports():
     """Check if main modules can be imported"""
     print_section("Module Imports")
     
-    sys.path.insert(0, 'lms_chatot')
+    # Add lms_chatot to path (assuming script is in scripts/ -> ../lms_chatot)
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(root_dir, 'lms_chatot'))
     
     modules = [
         ('canvas_integration', 'CanvasLMS'),
         ('canvas_agent', 'CanvasAgent'),
         ('canvas_tools', 'CanvasTools'),
-        ('intent_classifier', 'IntentClassifier'),
+
         ('analytics_cache', 'analytics_cache'),
         ('inference_systems.openai_inference', 'OpenAIInference')
     ]

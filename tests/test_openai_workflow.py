@@ -3,7 +3,7 @@
 """Test OpenAI Responses API integration"""
 import os
 import sys
-sys.path.insert(0, 'lms_chatot')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../lms_chatot'))
 
 from dotenv import load_dotenv
 load_dotenv()

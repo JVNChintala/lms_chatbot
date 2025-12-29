@@ -100,16 +100,6 @@ def load_html(template_name: str) -> HTMLResponse:
         return HTMLResponse(content=f.read())
 
 
-def resolve_canvas_user_id(role: str, provided_id: Optional[int]) -> Optional[int]:
-    if provided_id:
-        return provided_id
-
-    for _, user in user_store.users.items():
-        if user.get("role") == role:
-            return user.get("canvas_user_id")
-    return None
-
-
 # ---------------------------------------------------------------------
 # Core Endpoints
 # ---------------------------------------------------------------------
@@ -122,7 +112,7 @@ async def inference(req: InferenceRequest):
 
         # ---- Canvas-enabled inference
         if CANVAS_URL and CANVAS_TOKEN:
-            canvas_user_id = resolve_canvas_user_id(user_role, req.canvas_user_id)
+            canvas_user_id = req.canvas_user_id
 
             user_info = {
                 "canvas_user_id": canvas_user_id,
@@ -227,42 +217,26 @@ async def canvas_embed():
 
 @app.post("/demo-login")
 async def demo_login(req: LoginRequest):
-    demo_user = user_store.authenticate(req.username, req.password)
-    if demo_user:
-        token = create_demo_token(demo_user["login_id"], demo_user["role"])
-        return {
-            "token": token,
-            "role": demo_user["role"],
-            "username": demo_user["login_id"],
-            "canvas_user_id": demo_user["canvas_user_id"],
-        }
-
     if not (CANVAS_URL and CANVAS_TOKEN):
-        role = "teacher" if "teacher" in req.username.lower() else "student"
-        canvas_user_id = hash(req.username) % 10000
-        user_store.add_user(req.username, req.password, role, canvas_user_id)
-        return {
-            "token": create_demo_token(req.username, role),
-            "role": role,
-            "username": req.username,
-            "canvas_user_id": canvas_user_id,
-        }
+        raise HTTPException(status_code=503, detail="Canvas LMS not configured")
 
+    # Authenticate against Canvas API
     canvas_user = get_user_by_login(CANVAS_URL, CANVAS_TOKEN, req.username)
     if not canvas_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    # Determine role from enrollments
     role = "student"
-    enrollments_url = f"{CANVAS_URL.rstrip('/').replace('/api/v1','')}/api/v1/users/{canvas_user['id']}/enrollments"
-    r = requests.get(enrollments_url, headers={"Authorization": f"Bearer {CANVAS_TOKEN}"})
-    if r.ok:
-        for e in r.json():
-            if "teacher" in e.get("type", "").lower():
-                role = "teacher"
-                break
-
-    create_user_access_token(CANVAS_URL, CANVAS_TOKEN, canvas_user["id"])
-    user_store.add_user(req.username, req.password, role, canvas_user["id"])
+    try:
+        enrollments_url = f"{CANVAS_URL.rstrip('/').replace('/api/v1','')}/api/v1/users/{canvas_user['id']}/enrollments"
+        r = requests.get(enrollments_url, headers={"Authorization": f"Bearer {CANVAS_TOKEN}"}, timeout=5)
+        if r.ok:
+            for e in r.json():
+                if "teacher" in e.get("type", "").lower():
+                    role = "teacher"
+                    break
+    except Exception:
+        pass
 
     return {
         "token": create_demo_token(req.username, role),
