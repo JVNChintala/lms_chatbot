@@ -1,7 +1,8 @@
+# OpenAI Inference (Stable GPT-5–safe Agent)
 import os
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -12,134 +13,198 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIInference(BaseInference):
-    """OpenAI Responses API with dict-compatible wrapper"""
+    """
+    Agent-capable OpenAI Responses API wrapper
+    - Stable across GPT-4o and GPT-5 models
+    - Tool-first, stateful, loop-safe
+    """
 
     DEFAULT_MODEL = "gpt-4o-mini"
-    MAX_TOKENS = 400
-    # MAX_FINAL_TOKENS = 600
+    MAX_TOKENS = 5000
+    MAX_STEPS = 20
 
     def __init__(self):
         self.name = self.__class__.__name__
         api_key = os.getenv("OPENAI_API_KEY")
+
         try:
             self.client = OpenAI(api_key=api_key) if api_key else None
         except Exception as e:
             logger.error(f"OpenAI init failed: {e}")
+            print(f"OpenAI init failed: {e}")
             self.client = None
+
         self._final_usage: Optional[Dict[str, int]] = None
+
+        # Persistent agent memory (Canvas orchestration)
+        self.execution_state: Dict[str, Any] = {
+            "course_id": None,
+            "modules": {},
+            "pages": {},
+            "assignments": {},
+            "quizzes": {},
+        }
 
     def is_available(self) -> bool:
         return self.client is not None
 
-    def call_with_tools(
+    # ------------------------------------------------------------------
+    # PUBLIC ENTRY POINT
+    # ------------------------------------------------------------------
+
+    def run_agent(
         self,
         system_prompt: str,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]],
-        force_tool: Optional[str] = None,
+        tool_executor,
     ) -> Dict[str, Any]:
+        """
+        Fully stable agent loop:
+        - Tool-first
+        - No premature fallback
+        - Terminates only on real completion
+        """
         if not self.client:
-            return {"needs_tool": False, "content": "OpenAI not configured."}
-        return self._execute_response_call(system_prompt, messages, tools, force_tool)
+            return {"content": "OpenAI not configured."}
 
-    def _execute_response_call(
-        self,
-        system_prompt: str,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]],
-        force_tool: Optional[str],
-    ) -> Dict[str, Any]:
         normalized_tools = self._normalize_tools(tools)
-        input_messages = [{"role": "system", "content": system_prompt}] + messages
+        conversation = [{"role": "system", "content": system_prompt}] + messages
 
-        request = {
-            "model": self.DEFAULT_MODEL,
-            "input": input_messages,
-            "max_output_tokens": self.MAX_TOKENS,
-        }
+        for step in range(self.MAX_STEPS):
+            response = self._call_llm(conversation, normalized_tools)
+            self._final_usage = self._to_dict(response.usage, response.model)
 
-        if normalized_tools:
-            request["tools"] = normalized_tools
-            if force_tool:
-                request["tool_choice"] = "required"
+            tool_call = self._extract_tool_call(response)
 
-        try:
-            response = self.client.responses.create(**request)
-            print(f"OpenAI Response: output_text={response.output_text[:100] if response.output_text else 'None'}, output_items={len(response.output)}")
-            for idx, item in enumerate(response.output):
-                item_type = getattr(item, "type", None)
-                print(f"  Item {idx}: type={item_type}, name={getattr(item, 'name', 'N/A')}")
-        except Exception as e:
-            logger.error(f"OpenAI API call failed: {e}")
-            return {"needs_tool": False, "content": "Service temporarily unavailable."}
+            # 🟢 TOOL EXECUTION PATH
+            if tool_call:
+                tool_name, tool_args = tool_call
 
-        self._final_usage = self._to_dict(response.usage, response.model)
+                tool_result = tool_executor(
+                    tool_name=tool_name,
+                    tool_args=tool_args,
+                    state=self.execution_state,
+                )
 
-        for item in response.output:
-            item_type = getattr(item, "type", None)
-            if item_type in ("tool_call", "function_call"):
-                tool_name = getattr(item, "name", "")
-                tool_args_raw = getattr(item, "arguments", {}) or {}
-                
-                # Parse JSON string if needed
-                if isinstance(tool_args_raw, str):
-                    try:
-                        tool_args = json.loads(tool_args_raw)
-                    except:
-                        tool_args = {}
-                else:
-                    tool_args = tool_args_raw
+                self._update_execution_state(tool_name, tool_result)
 
-                required_fields = self._get_required_fields(normalized_tools, tool_name)
-                missing = [f for f in required_fields if not tool_args.get(f)]
+                conversation.append({
+                    "role": "tool",
+                    "name": tool_name,
+                    "content": json.dumps(tool_result),
+                })
+                continue
 
-                if missing:
-                    # Use OpenAI to generate conversational clarification
-                    clarification = self._generate_clarification(tool_name, missing, messages)
-                    return {
-                        "needs_tool": False,
-                        "content": clarification,
-                        "missing_args": missing,
-                        "usage": self._final_usage,
-                    }
+            # 🟢 FINAL RESPONSE PATH
+            final_text = self._extract_final_text(response)
 
+            if final_text:
                 return {
-                    "needs_tool": True,
-                    "tool_name": tool_name,
-                    "tool_args": tool_args,
+                    "content": final_text,
                     "usage": self._final_usage,
+                    "state": self.execution_state,
                 }
 
+            # 🟡 GPT-5 WAIT STATE (no text, no tool)
+            logger.debug(
+                f"Waiting for model completion (step={step}, "
+                f"output_items={len(response.output)})"
+            )
+            print(
+                f"Waiting for model completion (step={step}, "
+                f"output_items={len(response.output)})"
+            )
+
         return {
-            "needs_tool": False,
-            "content": response.output_text or "I'm here to help with Canvas LMS.",
+            "content": "Automation stopped: model did not converge.",
             "usage": self._final_usage,
+            "state": self.execution_state,
         }
 
-    # def get_final_response(self, tool_result: Dict[str, Any]) -> str:
-    #     if not self.client:
-    #         return "Operation completed successfully."
+    # ------------------------------------------------------------------
+    # LLM CALL
+    # ------------------------------------------------------------------
 
-    #     result_str = json.dumps(tool_result)
-    #     if len(result_str) > 2000:
-    #         result_str = result_str[:2000] + "..."
+    def _call_llm(
+        self,
+        conversation: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+    ):
+        return self.client.responses.create(
+            model=self.DEFAULT_MODEL,
+            input=conversation,
+            tools=tools,
+            max_output_tokens=self.MAX_TOKENS,
+        )
 
-    #     prompt = f"Convert the following Canvas result into a friendly, non-technical summary for the user.\n\n{result_str}"
+    # ------------------------------------------------------------------
+    # RESPONSE PARSING (GPT-5 SAFE)
+    # ------------------------------------------------------------------
 
-    #     try:
-    #         response = self.client.responses.create(
-    #             model=self.DEFAULT_MODEL,
-    #             input=prompt,
-    #             max_output_tokens=self.MAX_FINAL_TOKENS,
-    #         )
-    #         self._final_usage = self._to_dict(response.usage, response.model)
-    #         return response.output_text or "Operation completed successfully."
-    #     except Exception as e:
-    #         logger.error(f"Final response failed: {e}")
-    #         return "Operation completed successfully."
+    def _extract_tool_call(self, response) -> Optional[Tuple[str, Dict[str, Any]]]:
+        """
+        GPT-5 emits tool calls without output_text — this is NORMAL
+        """
+        for item in response.output:
+            if getattr(item, "type", None) in ("tool_call", "function_call"):
+                name = getattr(item, "name", "")
+                raw_args = getattr(item, "arguments", {})
 
-    def get_final_usage(self) -> Optional[Dict[str, int]]:
-        return self._final_usage
+                if isinstance(raw_args, str):
+                    try:
+                        args = json.loads(raw_args)
+                    except Exception:
+                        args = {}
+                else:
+                    args = raw_args or {}
+
+                return name, args
+        return None
+
+    def _extract_final_text(self, response) -> Optional[str]:
+        """
+        Only finalize when the model explicitly emits text
+        """
+        if response.output_text:
+            return response.output_text.strip() or None
+
+        # Some GPT-5 variants emit text as output items
+        texts = [
+            getattr(item, "text", None)
+            for item in response.output
+            if getattr(item, "type", None) == "output_text"
+        ]
+
+        combined = "\n".join(t for t in texts if t)
+        return combined.strip() or None
+
+    # ------------------------------------------------------------------
+    # STATE MANAGEMENT
+    # ------------------------------------------------------------------
+
+    def _update_execution_state(self, tool_name: str, result: Dict[str, Any]):
+        if not isinstance(result, dict):
+            return
+
+        if "course_id" in result:
+            self.execution_state["course_id"] = result["course_id"]
+
+        if "module_id" in result:
+            self.execution_state["modules"][result.get("name", "unnamed")] = result["module_id"]
+
+        if "page_id" in result:
+            self.execution_state["pages"][result.get("title", "untitled")] = result["page_id"]
+
+        if "assignment_id" in result:
+            self.execution_state["assignments"][result.get("name", "assignment")] = result["assignment_id"]
+
+        if "quiz_id" in result:
+            self.execution_state["quizzes"][result.get("title", "quiz")] = result["quiz_id"]
+
+    # ------------------------------------------------------------------
+    # TOOL NORMALIZATION
+    # ------------------------------------------------------------------
 
     def _normalize_tools(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         normalized = []
@@ -152,60 +217,29 @@ class OpenAIInference(BaseInference):
                     "description": func.get("description", ""),
                     "parameters": func.get("parameters", {}),
                 })
-                continue
-            schema = tool.get("input_schema", {})
-            normalized.append({
-                "type": "function",
-                "name": tool.get("name"),
-                "description": tool.get("description", ""),
-                "parameters": {
-                    "type": "object",
-                    "properties": schema.get("properties", {}),
-                    "required": schema.get("required", []),
-                },
-            })
+            else:
+                schema = tool.get("input_schema", {})
+                normalized.append({
+                    "type": "function",
+                    "name": tool.get("name"),
+                    "description": tool.get("description", ""),
+                    "parameters": {
+                        "type": "object",
+                        "properties": schema.get("properties", {}),
+                        "required": schema.get("required", []),
+                    },
+                })
         return normalized
 
-    def _generate_clarification(self, tool_name: str, missing: List[str], conversation: List[Dict[str, str]]) -> str:
-        """Use OpenAI to generate natural clarification request with context"""
-        default_msg = f"Could you provide the {', '.join(missing)}?"
-        
-        if not self.client:
-            return default_msg
-        
-        # Build context-aware prompt
-        context = "\n".join([f"{m['role']}: {m['content']}" for m in conversation[-3:]])
-        prompt = (
-            f"The user wants to {tool_name.replace('_', ' ')} but didn't provide: {', '.join(missing)}.\n"
-            f"Recent conversation:\n{context}\n\n"
-            "Ask the user conversationally for the missing information. Be friendly and helpful."
-        )
-        
-        try:
-            response = self.client.responses.create(
-                model=self.DEFAULT_MODEL,
-                input=prompt,
-                max_output_tokens=100,
-            )
-            return response.output_text or default_msg
-        except Exception as e:
-            logger.warning(f"Clarification generation failed: {e}")
-            return default_msg
-
-    @staticmethod
-    def _get_required_fields(tools: List[Dict[str, Any]], tool_name: str) -> List[str]:
-        for t in tools:
-            if t.get("name") == tool_name:
-                return t.get("parameters", {}).get("required", [])
-        return []
+    # ------------------------------------------------------------------
+    # USAGE NORMALIZATION
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _to_dict(usage_obj: Any, model: str) -> Dict[str, int]:
-        """Convert typed usage object to dict consistently"""
         if not usage_obj:
             return {"model": model, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-            
-        # Handle both pydantic objects and dicts
+
         if isinstance(usage_obj, dict):
             return {
                 "model": model,
@@ -213,7 +247,7 @@ class OpenAIInference(BaseInference):
                 "output_tokens": usage_obj.get("output_tokens", 0),
                 "total_tokens": usage_obj.get("total_tokens", 0),
             }
-            
+
         return {
             "model": model,
             "input_tokens": getattr(usage_obj, "input_tokens", 0),
