@@ -181,14 +181,19 @@ class CanvasLMS:
         response.raise_for_status()
         return response.json()
     
-    def add_module_item(self, course_id: int, module_id: int, item_type: str, content_id: int, title: str) -> Dict:
+    def add_module_item(self, course_id: int, module_id: int, item_type: str, content_id: int = None, title: str = None, page_url: str = None) -> Dict:
         """Add an item to a module"""
         url = f"{self.base_url}/api/v1/courses/{course_id}/modules/{module_id}/items"
-        data = {
-            "module_item[type]": item_type,
-            "module_item[content_id]": content_id,
-            "module_item[title]": title
-        }
+        data = {"module_item[type]": item_type}
+        
+        if item_type == "Page" and page_url:
+            data["module_item[page_url]"] = page_url
+        elif content_id:
+            data["module_item[content_id]"] = content_id
+        
+        if title:
+            data["module_item[title]"] = title
+        
         response = requests.post(url, headers=self.headers, data=data)
         response.raise_for_status()
         return response.json()

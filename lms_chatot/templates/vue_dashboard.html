@@ -70,8 +70,8 @@
         .message-content th, .message-content td { border: 1px solid rgba(0,0,0,0.2); padding: 6px; text-align: left; }
         .message-content th { background: rgba(0,0,0,0.1); font-weight: 600; }
         .input-area { padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; }
-        .input-area input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; }
-        .input-area button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .input-area textarea { flex: 1; padding: 12px; border: 1px solid #d1d5db; border-radius: 5px; resize: vertical; min-height: 60px; max-height: 250px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; font-size: 15px; white-space: pre-wrap; word-wrap: break-word; }
+        .input-area button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; align-self: flex-end; font-size: 15px; font-weight: 600; }
         .loading { display: flex; align-items: center; gap: 5px; }
         .dot { width: 8px; height: 8px; background: #6b7280; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
         .dot:nth-child(1) { animation-delay: -0.32s; }
@@ -329,8 +329,12 @@
                         </div>
                     </div>
                     <div class="input-area" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; flex-shrink: 0;">
-                        <input v-model="userInput" @keypress.enter="sendMessage" placeholder="Type your message..." />
-                        <button @click="sendMessage" :disabled="isLoading">Send</button>
+                        <textarea v-model="userInput" 
+                                  @keydown.enter.exact.prevent="sendMessage" 
+                                  @keydown.enter.shift.exact="insertNewLine" 
+                                  placeholder="Type your message... (Shift+Enter for new line)" 
+                                  style="flex: 1; padding: 12px; border: 1px solid #d1d5db; border-radius: 5px; resize: vertical; min-height: 60px; max-height: 250px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; font-size: 15px; white-space: pre-wrap; word-wrap: break-word;"></textarea>
+                        <button @click="sendMessage" :disabled="isLoading" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; align-self: flex-end; font-size: 15px; font-weight: 600;">Send</button>
                     </div>
                 </div>
             </div>
@@ -641,6 +645,18 @@
                         // Refresh analytics after message to update course count
                         await this.loadAnalytics();
                     }
+                },
+                insertNewLine(event) {
+                    const textarea = event.target;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const value = textarea.value;
+                    
+                    this.userInput = value.substring(0, start) + '\n' + value.substring(end);
+                    
+                    this.$nextTick(() => {
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    });
                 },
                 handleMetricClick(key) {
                     if (key === 'total_courses' && this.analytics.course_details) {

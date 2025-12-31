@@ -152,152 +152,45 @@ class CanvasAgent:
         available_tools: List[Dict[str, Any]],
         canvas_tools: CanvasTools
     ) -> Dict[str, Any]:
-        """Process a fresh user message"""
+        """Process a fresh user message using run_agent for multi-step workflows"""
         
-        # Multi-step workflow: Detect and execute prerequisite tools
-        required_tools = self._detect_required_tools(user_message, conversation_history)
-        if required_tools:
-            print(f"[CANVAS_AGENT] Multi-step workflow: Required tools: {required_tools}")
-            self._execute_prerequisite_tools(required_tools, canvas_tools, conversation_history)
-        
-        # Let OpenAI decide: use tool or conversation
         system_prompt = (
             f"You are a Canvas LMS assistant for {self.user_role or 'user'}.\n"
-            "You have access to Canvas tools to fetch/modify data.\n"
-            "When user mentions entities by NAME (course, module, etc), extract the ID from conversation history.\n"
-            "Use tools for Canvas operations, conversation for questions/guidance.\n"
-            "If ambiguous, ask clarifying questions."
+            "Execute Canvas operations step-by-step using available tools.\n"
+            "For complex requests (e.g., 'create course with modules'), call tools sequentially.\n"
+            "Use conversation history to reference created entities by their IDs.\n"
+            "Only respond with text when all operations are complete."
         )
         
         messages = [
-            {"role": m.get("role", "user"), "content": m.get("content", "")}
+            {"role": "system" if m.get("role") == "tool" else m.get("role", "user"), "content": m.get("content", "")}
             for m in (conversation_history or [])[-5:]
         ]
         messages.append({"role": "user", "content": user_message})
         
-        result = self.inference.call_with_tools(
+        # Use run_agent for full agentic workflow
+        def tool_executor(tool_name, tool_args, state):
+            print(f"[CANVAS_AGENT] Executing: {tool_name} with {tool_args}")
+            result = canvas_tools.execute_tool(tool_name, tool_args)
+            return result
+        
+        result = self.inference.run_agent(
             system_prompt,
             messages,
             available_tools,
+            tool_executor
         )
         
-        # Tool was called
-        if result.get("needs_tool"):
-            return self._process_tool_call(result, user_message, available_tools, canvas_tools)
-        
-        # Pure conversation
-        self._track_usage(result, tool_used=False)
+        self._track_usage(result, tool_used=True)
         return {
-            "content": result.get("content", "I'm here to help with Canvas LMS."),
-            "tool_used": False,
-            "inference_system": "OpenAI",
-        }
-
-    def _process_tool_call(
-        self,
-        result: Dict[str, Any],
-        user_message: str,
-        available_tools: List[Dict[str, Any]],
-        canvas_tools: CanvasTools
-    ) -> Dict[str, Any]:
-        """Execute the tool selected by the LLM"""
-        tool_name = result.get("tool_name")
-        tool_args = result.get("tool_args", {})
-        print(f"[CANVAS_AGENT] OpenAI selected tool: {tool_name} with args: {tool_args}")
-        
-        # Check for missing args
-        if result.get("missing_args"):
-            print(f"[CANVAS_AGENT] Missing args: {result.get('missing_args')}")
-            return {
-                "content": result.get("content"),
-                "tool_used": False,
-                "clarification_needed": True,
-                "pending_tool": tool_name,
-                "pending_tool_def": next((t for t in available_tools if t["function"]["name"] == tool_name), None),
-            }
-        
-        # Execute tool
-        tool_result = canvas_tools.execute_tool(tool_name, tool_args)
-        self._track_usage(result, tool_used=True, tool_name=tool_name)
-        
-        # Single tool execution
-        final_response = self._format_tool_response(user_message, tool_result, tool_name)
-        return {
-            "content": final_response,
+            "content": result.get("content", "Operation completed."),
             "tool_used": True,
-            "tool_results": [{"function_name": tool_name, "result": tool_result}],
             "inference_system": "OpenAI",
-            "raw_tool_data": tool_result,
+            "state": result.get("state", {}),
+            "usage": result.get("usage", {}),
         }
 
-    # ------------------------------------------------------------------
-    # Multi-Step Workflow System
-    # ------------------------------------------------------------------
 
-    def _detect_required_tools(self, user_message: str, conversation_history: List[Dict[str, Any]]) -> List[str]:
-        """Detect which tools need to be called as prerequisites"""
-        
-        required_tools = []
-        
-        # Check what data is already in conversation history
-        # We look at the last 5 messages to see if we recently fetched these items
-        recent_history = conversation_history[-5:]
-        has_course_list = any(msg.get("raw_tool_data", {}).get("courses") for msg in recent_history)
-        has_module_list = any(msg.get("raw_tool_data", {}).get("modules") for msg in recent_history)
-        has_assignment_list = any(msg.get("raw_tool_data", {}).get("assignments") for msg in recent_history)
-        
-        # Course name reference without course list
-        if not has_course_list:
-            if any(p.search(user_message) for p in self.COURSE_PATTERNS):
-                if not self.COURSE_ID_PATTERN.search(user_message):  # Not using course ID
-                    required_tools.append("list_user_courses")
-        
-        # Module name reference without module list
-        if not has_module_list and has_course_list:
-            if any(p.search(user_message) for p in self.MODULE_PATTERNS):
-                if not self.MODULE_ID_PATTERN.search(user_message):
-                    required_tools.append("list_modules")
-        
-        # Assignment name reference without assignment list
-        if not has_assignment_list and has_course_list:
-            if any(p.search(user_message) for p in self.ASSIGNMENT_PATTERNS):
-                if not self.ASSIGNMENT_ID_PATTERN.search(user_message):
-                    required_tools.append("list_assignments")
-        
-        return required_tools
-
-    def _execute_prerequisite_tools(self, required_tools: List[str], canvas_tools: CanvasTools, conversation_history: List[Dict[str, Any]]) -> None:
-        """Execute prerequisite tools and add results to conversation history"""
-        
-        for tool_name in required_tools:
-            print(f"[CANVAS_AGENT] Multi-step: Executing prerequisite tool: {tool_name}")
-            
-            try:
-                # Determine arguments based on tool
-                args = {}
-                if tool_name in ["list_modules", "list_assignments"]:
-                    # Need course_id from previous course list
-                    for msg in reversed(conversation_history):
-                        courses = msg.get("raw_tool_data", {}).get("courses", [])
-                        if courses:
-                            args["course_id"] = courses[0]["id"]  # Use first course
-                            break
-                
-                result = canvas_tools.execute_tool(tool_name, args)
-                
-                # Add to conversation history
-                conversation_history.append({
-                    "role": "system",
-                    "content": f"Fetched data: {json.dumps(result)[:500]}",
-                    "raw_tool_data": result
-                })
-                
-            except Exception as e:
-                print(f"[CANVAS_AGENT] Prerequisite tool {tool_name} failed: {e}")
-
-    # ------------------------------------------------------------------
-    # Context
-    # ------------------------------------------------------------------
 
     def _set_user_context(self, role: Optional[str], info: Optional[Dict[str, Any]]):
         if role:

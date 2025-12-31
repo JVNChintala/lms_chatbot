@@ -370,8 +370,9 @@ class CanvasTools:
             args["course_id"],
             args["module_id"],
             args["item_type"],
-            args["content_id"],
-            args["title"]
+            content_id=args.get("content_id"),
+            title=args.get("title"),
+            page_url=args.get("page_url")
         )
 
     def _list_module_items(self, args: dict):

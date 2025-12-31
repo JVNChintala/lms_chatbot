@@ -49,8 +49,62 @@ class OpenAIInference(BaseInference):
         return self.client is not None
 
     # ------------------------------------------------------------------
-    # PUBLIC ENTRY POINT
+    # PUBLIC ENTRY POINTS
     # ------------------------------------------------------------------
+
+    def call_with_tools(
+        self,
+        system_prompt: str,
+        messages: List[Dict[str, str]],
+        tools: List[Dict[str, Any]],
+        force_tool: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Single-step tool detection (backward compatibility)"""
+        if not self.client:
+            return {"content": "OpenAI not configured.", "needs_tool": False}
+
+        if not tools:
+            try:
+                response = self.client.responses.create(
+                    model=self.DEFAULT_MODEL,
+                    input=[{"role": "system", "content": system_prompt}] + messages,
+                    max_output_tokens=self.MAX_TOKENS,
+                )
+                return {
+                    "content": response.output_text or "I'm here to help.",
+                    "needs_tool": False,
+                    "usage": self._to_dict(response.usage, response.model),
+                }
+            except Exception as e:
+                logger.error(f"Conversation call failed: {e}")
+                return {"content": "Error processing request.", "needs_tool": False}
+
+        # Single-step tool detection
+        normalized_tools = self._normalize_tools(tools)
+        conversation = [{"role": "system", "content": system_prompt}] + messages
+        
+        try:
+            response = self._call_llm(conversation, normalized_tools)
+            tool_call = self._extract_tool_call(response)
+            
+            if tool_call:
+                tool_name, tool_args = tool_call
+                return {
+                    "needs_tool": True,
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "usage": self._to_dict(response.usage, response.model),
+                }
+            
+            final_text = self._extract_final_text(response)
+            return {
+                "needs_tool": False,
+                "content": final_text or "I'm here to help.",
+                "usage": self._to_dict(response.usage, response.model),
+            }
+        except Exception as e:
+            logger.error(f"call_with_tools failed: {e}")
+            return {"content": "Error processing request.", "needs_tool": False}
 
     def run_agent(
         self,
@@ -90,9 +144,8 @@ class OpenAIInference(BaseInference):
                 self._update_execution_state(tool_name, tool_result)
 
                 conversation.append({
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": json.dumps(tool_result),
+                    "role": "system",
+                    "content": f"Tool {tool_name} result: {json.dumps(tool_result)}",
                 })
                 continue
 

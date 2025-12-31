@@ -779,17 +779,18 @@ class CanvasToolSchemas:
             "type": "function",
             "function": {
                 "name": "add_module_item",
-                "description": "Add an item (assignment, quiz, page, etc.) to a module",
+                "description": "Add item to module. For Page: use page_url from list_pages url field. For Assignment/Quiz: use content_id.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "course_id": {"type": "integer", "description": "Course ID"},
                         "module_id": {"type": "integer", "description": "Module ID"},
-                        "item_type": {"type": "string", "description": "Type: Assignment, Quiz, Page, Discussion, ExternalUrl, ExternalTool"},
-                        "content_id": {"type": "integer", "description": "ID of the content item"},
+                        "item_type": {"type": "string", "description": "Type: Assignment, Quiz, Page, Discussion"},
+                        "content_id": {"type": "integer", "description": "ID for Assignment/Quiz/Discussion"},
+                        "page_url": {"type": "string", "description": "URL slug for Page (from url field in list_pages)"},
                         "title": {"type": "string", "description": "Display title for the item"},
                     },
-                    "required": ["course_id", "module_id", "item_type", "content_id", "title"],
+                    "required": ["course_id", "module_id", "item_type"],
                 },
             },
         }
@@ -867,3 +868,7 @@ class CanvasToolSchemas:
                 },
             },
         }
+
+
+
+
