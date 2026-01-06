@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from canvas_routes import router as canvas_router
 from fast_analytics import router as analytics_router
 from file_upload_routes import router as file_upload_router
+from lti_routes import router as lti_router
 
 # Core services
 from inference_systems.openai_inference import OpenAIInference
@@ -50,6 +51,7 @@ app = FastAPI(title="LLM Inference API")
 app.include_router(canvas_router)
 app.include_router(analytics_router)
 app.include_router(file_upload_router)
+app.include_router(lti_router)
 
 # ---------------------------------------------------------------------
 # Models
