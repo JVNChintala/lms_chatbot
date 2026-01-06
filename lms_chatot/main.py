@@ -160,7 +160,7 @@ async def inference(req: InferenceRequest):
             }
 
         # ---- Fallback OpenAI inference
-        openai = OpenAIInference(use_multi_model=False)
+        openai = OpenAIInference()
         if not openai.is_available():
             return {
                 "content": "Canvas LMS assistant is currently unavailable.",

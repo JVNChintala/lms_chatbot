@@ -1,4 +1,4 @@
-# OpenAI Inference (Stable GPT-5–safe Agent)
+# OpenAI Inference (Stable Production Agent)
 import os
 import json
 import logging
@@ -14,14 +14,18 @@ logger = logging.getLogger(__name__)
 
 class OpenAIInference(BaseInference):
     """
-    Agent-capable OpenAI Responses API wrapper
-    - Stable across GPT-4o and GPT-5 models
-    - Tool-first, stateful, loop-safe
+    Production-safe Agent-capable OpenAI Responses API wrapper
+    - GPT-4 & GPT-5 compatible
+    - Tool-first
+    - Loop-safe
+    - Human-recoverable
     """
 
     DEFAULT_MODEL = "gpt-4o-mini"
     MAX_TOKENS = 5000
     MAX_STEPS = 20
+    IDLE_LIMIT = 3
+    TOOL_REPEAT_LIMIT = 10
 
     def __init__(self):
         self.name = self.__class__.__name__
@@ -31,12 +35,10 @@ class OpenAIInference(BaseInference):
             self.client = OpenAI(api_key=api_key) if api_key else None
         except Exception as e:
             logger.error(f"OpenAI init failed: {e}")
-            print(f"OpenAI init failed: {e}")
             self.client = None
 
         self._final_usage: Optional[Dict[str, int]] = None
 
-        # Persistent agent memory (Canvas orchestration)
         self.execution_state: Dict[str, Any] = {
             "course_id": None,
             "modules": {},
@@ -49,15 +51,14 @@ class OpenAIInference(BaseInference):
         return self.client is not None
 
     # ------------------------------------------------------------------
-    # PUBLIC ENTRY POINTS
+    # AGENT LOOP (PRODUCTION SAFE)
     # ------------------------------------------------------------------
-
+    
     def call_with_tools(
         self,
         system_prompt: str,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]],
-        force_tool: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Single-step tool detection (backward compatibility)"""
         if not self.client:
@@ -113,17 +114,23 @@ class OpenAIInference(BaseInference):
         tools: List[Dict[str, Any]],
         tool_executor,
     ) -> Dict[str, Any]:
-        """
-        Fully stable agent loop:
-        - Tool-first
-        - No premature fallback
-        - Terminates only on real completion
-        """
+
         if not self.client:
             return {"content": "OpenAI not configured."}
 
+        # 🔐 Ensure resume tracking exists
+        self.execution_state.setdefault("completed_steps", set())
+
         normalized_tools = self._normalize_tools(tools)
-        conversation = [{"role": "system", "content": system_prompt}] + messages
+
+        # 🟢 RESUME-SAFE SYSTEM PROMPT
+        conversation = [
+            self._build_resume_guard(system_prompt)
+        ] + messages
+
+        idle_steps = 0
+        tool_history = []
+        stop_reason = None
 
         for step in range(self.MAX_STEPS):
             response = self._call_llm(conversation, normalized_tools)
@@ -131,9 +138,16 @@ class OpenAIInference(BaseInference):
 
             tool_call = self._extract_tool_call(response)
 
-            # 🟢 TOOL EXECUTION PATH
+            # ---------------- TOOL EXECUTION ----------------
             if tool_call:
+                idle_steps = 0
                 tool_name, tool_args = tool_call
+                tool_history.append(tool_name)
+
+                # 🔁 Tool loop protection
+                if len(tool_history) >= 3 and len(set(tool_history[-3:])) == 1:
+                    stop_reason = f"Repeated invocation of tool '{tool_name}'"
+                    break
 
                 tool_result = tool_executor(
                     tool_name=tool_name,
@@ -141,39 +155,61 @@ class OpenAIInference(BaseInference):
                     state=self.execution_state,
                 )
 
+                # 🔐 UPDATE EXECUTION STATE
                 self._update_execution_state(tool_name, tool_result)
+
+                # 🧠 LOGICAL COMPLETION MARKERS (CRITICAL)
+                if tool_name == "create_course" and self.execution_state.get("course_id"):
+                    self.execution_state["completed_steps"].add("course_created")
+
+                if tool_name == "create_module" and "name" in tool_result:
+                    self.execution_state["completed_steps"].add(
+                        f"module:{tool_result['name']}"
+                    )
+
+                if tool_name == "add_page_to_module":
+                    self.execution_state["completed_steps"].add(
+                        f"module:{tool_result.get('module_name')}:items"
+                    )
+
+                if tool_name == "create_assignment":
+                    self.execution_state["completed_steps"].add(
+                        f"assignment:{tool_result.get('name')}"
+                    )
+
+                if tool_name == "create_quiz":
+                    self.execution_state["completed_steps"].add("final_quiz_created")
 
                 conversation.append({
                     "role": "system",
-                    "content": f"Tool {tool_name} result: {json.dumps(tool_result)}",
+                    "content": f"Tool '{tool_name}' executed. Result: {json.dumps(tool_result)}",
                 })
                 continue
 
-            # 🟢 FINAL RESPONSE PATH
+            # ---------------- FINAL RESPONSE ----------------
             final_text = self._extract_final_text(response)
-
             if final_text:
                 return {
                     "content": final_text,
                     "usage": self._final_usage,
                     "state": self.execution_state,
+                    "status": "completed",
                 }
 
-            # 🟡 GPT-5 WAIT STATE (no text, no tool)
-            logger.debug(
-                f"Waiting for model completion (step={step}, "
-                f"output_items={len(response.output)})"
-            )
-            print(
-                f"Waiting for model completion (step={step}, "
-                f"output_items={len(response.output)})"
-            )
+            # ---------------- IDLE STATE ----------------
+            idle_steps += 1
+            if idle_steps >= 3:
+                stop_reason = "Model produced no tool calls or final output"
+                break
 
-        return {
-            "content": "Automation stopped: model did not converge.",
-            "usage": self._final_usage,
-            "state": self.execution_state,
-        }
+        if not stop_reason:
+            stop_reason = "Maximum steps reached"
+
+        return self._graceful_pause(
+            conversation=conversation,
+            reason=stop_reason,
+            step=step,
+        )
 
     # ------------------------------------------------------------------
     # LLM CALL
@@ -192,14 +228,11 @@ class OpenAIInference(BaseInference):
         )
 
     # ------------------------------------------------------------------
-    # RESPONSE PARSING (GPT-5 SAFE)
+    # GPT-4 / GPT-5 SAFE PARSING
     # ------------------------------------------------------------------
 
     def _extract_tool_call(self, response) -> Optional[Tuple[str, Dict[str, Any]]]:
-        """
-        GPT-5 emits tool calls without output_text — this is NORMAL
-        """
-        for item in response.output:
+        for item in getattr(response, "output", []) or []:
             if getattr(item, "type", None) in ("tool_call", "function_call"):
                 name = getattr(item, "name", "")
                 raw_args = getattr(item, "arguments", {})
@@ -216,21 +249,74 @@ class OpenAIInference(BaseInference):
         return None
 
     def _extract_final_text(self, response) -> Optional[str]:
-        """
-        Only finalize when the model explicitly emits text
-        """
-        if response.output_text:
+        if getattr(response, "output_text", None):
             return response.output_text.strip() or None
 
-        # Some GPT-5 variants emit text as output items
         texts = [
             getattr(item, "text", None)
-            for item in response.output
+            for item in getattr(response, "output", []) or []
             if getattr(item, "type", None) == "output_text"
         ]
 
         combined = "\n".join(t for t in texts if t)
         return combined.strip() or None
+
+    # ------------------------------------------------------------------
+    # GRACEFUL PAUSE (LLM-GENERATED)
+    # ------------------------------------------------------------------
+
+    def _graceful_pause(self, conversation, reason: str, step: int):
+        pause_prompt = {
+            "role": "system",
+            "content": (
+                "You are running a multi-step automation.\n\n"
+                f"The automation paused at step {step + 1}.\n"
+                f"Reason: {reason}\n\n"
+                "Please:\n"
+                "1. Summarize what has been completed so far.\n"
+                "2. Explain why the automation paused.\n"
+                "3. Ask the user if they want to continue as a new request "
+                "or provide clarification.\n\n"
+                "Be concise and user-friendly."
+            )
+        }
+
+        response = self._call_llm(conversation + [pause_prompt], tools=[])
+        text = self._extract_final_text(response)
+
+        return {
+            "content": text or "Partial progress made. Would you like me to continue?",
+            "usage": self._final_usage,
+            "state": self.execution_state,
+            "status": "paused",
+            "reason": reason,
+        }
+
+    def _build_resume_guard(self, base_prompt: str) -> Dict[str, str]:
+        """
+        Injects authoritative resume constraints for the LLM.
+        """
+        completed = sorted(self.execution_state.get("completed_steps", []))
+
+        if not completed:
+            return {"role": "system", "content": base_prompt}
+
+        completed_text = "\n".join(f"- {c}" for c in completed)
+
+        return {
+            "role": "system",
+            "content": (
+                f"{base_prompt}\n\n"
+                "IMPORTANT RESUME INSTRUCTIONS:\n"
+                "The following steps are ALREADY COMPLETED in Canvas and MUST NOT be repeated:\n"
+                f"{completed_text}\n\n"
+                "Rules:\n"
+                "- Do NOT recreate existing courses, modules, pages, assignments, or quizzes.\n"
+                "- Continue ONLY with steps that are not completed yet.\n"
+                "- Assume completed items exist and are published.\n"
+                "- If unsure, prefer ADDING missing items over recreating parents.\n"
+            )
+        }
 
     # ------------------------------------------------------------------
     # STATE MANAGEMENT

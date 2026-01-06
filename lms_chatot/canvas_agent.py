@@ -7,6 +7,8 @@ from canvas_integration import CanvasLMS
 from canvas_tools import CanvasTools
 from usage_tracker import usage_tracker
 from inference_systems.openai_inference import OpenAIInference
+# from inference_systems.deepseek_inference import DeepSeekInference
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,29 +22,6 @@ class CanvasAgent:
     - analytics + usage tracking
     """
 
-    # Pre-compiled regex patterns for performance
-    COURSE_PATTERNS = [
-        re.compile(r'in course \w+', re.IGNORECASE),
-        re.compile(r'course named', re.IGNORECASE),
-        re.compile(r'course called', re.IGNORECASE),
-        re.compile(r'in the \w+ course', re.IGNORECASE)
-    ]
-    COURSE_ID_PATTERN = re.compile(r'course\s+\d+', re.IGNORECASE)
-
-    MODULE_PATTERNS = [
-        re.compile(r'in module', re.IGNORECASE),
-        re.compile(r'module named', re.IGNORECASE),
-        re.compile(r'module called', re.IGNORECASE)
-    ]
-    MODULE_ID_PATTERN = re.compile(r'module\s+\d+', re.IGNORECASE)
-
-    ASSIGNMENT_PATTERNS = [
-        re.compile(r'assignment named', re.IGNORECASE),
-        re.compile(r'assignment called', re.IGNORECASE),
-        re.compile(r'grade.*assignment', re.IGNORECASE)
-    ]
-    ASSIGNMENT_ID_PATTERN = re.compile(r'assignment\s+\d+', re.IGNORECASE)
-
     def __init__(self, canvas_url: str, admin_canvas_token: str, as_user_id: Optional[int] = None):
         self.admin_canvas = CanvasLMS(canvas_url, admin_canvas_token)
         self.canvas = CanvasLMS(canvas_url, admin_canvas_token, as_user_id=as_user_id)
@@ -53,6 +32,7 @@ class CanvasAgent:
         self.user_info: Dict[str, Any] = {}
 
         self.inference = OpenAIInference()
+        # self.inference = DeepSeekInference()
 
     # ------------------------------------------------------------------
     # Public API
@@ -238,14 +218,12 @@ class CanvasAgent:
                 system_prompt,
                 messages,
                 [tool_def],
-                force_tool=tool_name,
             )
             print(f"[CANVAS_AGENT] Inference result for tool {tool_name}: needs_tool={result.get('needs_tool')}, has_args={bool(result.get('tool_args'))}")
 
-            # Check if clarification is needed - use general conversation instead
+            # Consolidated handling of missing arguments: ask conversationally and return pending state
             if result.get("missing_args"):
                 print(f"[CANVAS_AGENT] Missing required args: {result.get('missing_args')} - using conversational mode")
-                # Use general conversation with context about the tool intent
                 context_prompt = (
                     f"User wants to {tool_name.replace('_', ' ')} but needs to provide: {', '.join(result.get('missing_args', []))}.\n"
                     "Ask them conversationally for this information."
@@ -265,15 +243,6 @@ class CanvasAgent:
             if result.get("needs_tool"):
                 tool_args = result.get("tool_args", {})
                 print(f"[CANVAS_AGENT] Executing tool {tool_name} with args: {tool_args}")
-                
-                # Check for missing required args
-                if result.get("missing_args"):
-                    print(f"[CANVAS_AGENT] Missing required args: {result.get('missing_args')}")
-                    return {
-                        "content": result.get("prompt_user", "Please provide more information."),
-                        "tool_used": False,
-                        "missing_args": result.get("missing_args"),
-                    }
                 
                 tool_result = canvas_tools.execute_tool(
                     result.get("tool_name", tool_name),
