@@ -352,4 +352,20 @@ async def dashboard_widgets(user_role: str, canvas_user_id: Optional[int] = None
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    
+    # SSL configuration
+    ssl_keyfile = os.getenv("SSL_KEYFILE")
+    ssl_certfile = os.getenv("SSL_CERTFILE")
+    
+    if ssl_keyfile and ssl_certfile:
+        # Production with SSL
+        uvicorn.run(
+            app, 
+            host="0.0.0.0", 
+            port=8001,
+            ssl_keyfile=ssl_keyfile,
+            ssl_certfile=ssl_certfile
+        )
+    else:
+        # Development without SSL
+        uvicorn.run(app, host="0.0.0.0", port=8001)
