@@ -127,3 +127,13 @@ class LTIProvider:
 
     def _enc(self, s: str) -> str:
         return quote(str(s), safe="-._~")
+    
+    def map_to_user_role(self, roles: str) -> str:
+        """Map LTI roles to internal roles"""
+        roles_lower = roles.lower()
+        if 'instructor' in roles_lower or 'teacher' in roles_lower:
+            return 'teacher'
+        elif 'administrator' in roles_lower:
+            return 'admin'
+        else:
+            return 'student'
