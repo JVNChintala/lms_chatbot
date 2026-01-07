@@ -108,6 +108,7 @@ def load_html(template_name: str) -> HTMLResponse:
 
 @app.post("/inference")
 async def inference(req: InferenceRequest):
+    print(f"Inference request: {req.model_dump()}")
     try:
         session_id = get_or_create_session(req.session_id, req.user_role)
         user_role = req.user_role or session_manager.get_session(session_id).get("role")
@@ -185,6 +186,7 @@ async def inference(req: InferenceRequest):
         }
 
     except Exception as e:
+        print(f"Inference error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
