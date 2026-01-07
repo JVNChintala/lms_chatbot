@@ -33,17 +33,20 @@ class LTIProvider:
         self._validate_required_params(form_data)
         self._verify_oauth(request, form_data)
 
-        return {
-            "user_id": form_data.get("user_id"),
+        user = {
+            "canvas_user_id": form_data.get("custom_canvas_user_id"),
+            "user_id": form_data.get("user_id"),  # LTI user id
+            "login_id": form_data.get("custom_canvas_user_login_id"),
             "name": form_data.get("lis_person_name_full"),
+            "first_name": form_data.get("lis_person_name_given"),
+            "last_name": form_data.get("lis_person_name_family"),
             "email": form_data.get("lis_person_contact_email_primary"),
+            "avatar": form_data.get("user_image"),
             "roles": form_data.get("roles", "").lower(),
-            "context_id": form_data.get("context_id"),
-            "context_title": form_data.get("context_title"),
-            "resource_link_id": form_data.get("resource_link_id"),
-            "outcome_service_url": form_data.get("lis_outcome_service_url"),
-            "result_sourcedid": form_data.get("lis_result_sourcedid"),
+            "ext_roles": form_data.get("ext_roles", "").lower(),
         }
+
+        return user
 
     # ---------- OAUTH ----------
 
