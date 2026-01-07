@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+import logging
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -42,6 +43,10 @@ from usage_tracker import usage_tracker
 # ---------------------------------------------------------------------
 
 load_dotenv()
+
+# Add logging config so messages appear reliably under uvicorn/gunicorn
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 CANVAS_URL = os.getenv("CANVAS_URL", "")
 CANVAS_TOKEN = os.getenv("CANVAS_TOKEN", "")
@@ -108,7 +113,7 @@ def load_html(template_name: str) -> HTMLResponse:
 
 @app.post("/inference")
 async def inference(req: InferenceRequest):
-    print(f"Inference request: {req.model_dump()}")
+    logger.info("Inference request: %s", req.model_dump())
     try:
         session_id = get_or_create_session(req.session_id, req.user_role)
         user_role = req.user_role or session_manager.get_session(session_id).get("role")
@@ -186,7 +191,7 @@ async def inference(req: InferenceRequest):
         }
 
     except Exception as e:
-        print(f"Inference error: {str(e)}")
+        logger.exception("Inference error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
