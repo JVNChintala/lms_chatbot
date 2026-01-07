@@ -7,7 +7,21 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background: transparent; height: 100vh; }
-        .chatbot-container { height: 100vh; display: flex; flex-direction: column; background: white; }
+        .app-container { height: 100vh; display: flex; background: white; }
+        
+        /* Sidebar */
+        .sidebar { width: 300px; background: #f8fafc; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; background: #1e40af; color: white; }
+        .new-chat-btn { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .conversations-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .conversation-item { padding: 10px; margin-bottom: 5px; background: white; border-radius: 5px; cursor: pointer; border: 1px solid #e2e8f0; }
+        .conversation-item:hover { background: #f1f5f9; }
+        .conversation-item.active { background: #dbeafe; border-color: #2563eb; }
+        .conversation-title { font-weight: 500; margin-bottom: 5px; }
+        .conversation-preview { font-size: 12px; color: #64748b; }
+        
+        /* Chat Area */
+        .chat-container { flex: 1; display: flex; flex-direction: column; }
         .chat-header { padding: 15px; background: #2563eb; color: white; }
         .chat-box { flex: 1; overflow-y: auto; padding: 20px; }
         .message { margin-bottom: 15px; display: flex; }
@@ -28,14 +42,28 @@
     </style>
 </head>
 <body>
-    <div class="chatbot-container">
-        <div class="chat-header">
-            <h2>AI Assistant</h2>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Conversations</h3>
+                <button class="new-chat-btn" onclick="startNewChat()">+ New Chat</button>
+            </div>
+            <div class="conversations-list" id="conversationsList">
+                <!-- Conversations will be loaded here -->
+            </div>
         </div>
-        <div class="chat-box" id="chatBox"></div>
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="Ask me anything..." />
-            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        
+        <!-- Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>AI Assistant</h2>
+            </div>
+            <div class="chat-box" id="chatBox"></div>
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="Ask me anything..." />
+                <button id="sendBtn" onclick="sendMessage()">Send</button>
+            </div>
         </div>
     </div>
 
@@ -44,15 +72,102 @@
         let sessionId = null;
         let userRole = null;
         let canvasUserId = null;
+        let currentConversationId = null;
+        let conversations = [];
 
-        // Get user info from Canvas context (passed via URL params)
+        // Get user info from Canvas context or localStorage
         const urlParams = new URLSearchParams(window.location.search);
-        canvasUserId = urlParams.get('user_id');
-        userRole = urlParams.get('role') || 'student';
+        canvasUserId = urlParams.get('user_id') || localStorage.getItem('canvas_user_id');
+        userRole = urlParams.get('role') || localStorage.getItem('canvas_role') || 'student';
+        
+        // Convert canvas_user_id to integer if it exists
+        if (canvasUserId) {
+            canvasUserId = parseInt(canvasUserId);
+        }
 
-        document.getElementById('userInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') sendMessage();
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConversations();
+            document.getElementById('userInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
         });
+
+        async function loadConversations() {
+            if (!canvasUserId) return;
+            
+            try {
+                const response = await fetch(`/conversations?canvas_user_id=${canvasUserId}`);
+                const data = await response.json();
+                conversations = data.conversations || [];
+                renderConversations();
+            } catch (error) {
+                console.error('Failed to load conversations:', error);
+            }
+        }
+
+        function renderConversations() {
+            const list = document.getElementById('conversationsList');
+            list.innerHTML = '';
+            
+            conversations.forEach(conv => {
+                const item = document.createElement('div');
+                item.className = `conversation-item ${conv.id === currentConversationId ? 'active' : ''}`;
+                item.onclick = () => loadConversation(conv.id);
+                item.innerHTML = `
+                    <div class="conversation-title">${conv.title}</div>
+                    <div class="conversation-preview">${new Date(conv.created_at).toLocaleDateString()}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function loadConversation(conversationId) {
+            currentConversationId = conversationId;
+            renderConversations();
+            
+            try {
+                const response = await fetch(`/conversations/${conversationId}/messages`);
+                const data = await response.json();
+                
+                messages = [];
+                document.getElementById('chatBox').innerHTML = '';
+                
+                data.messages.forEach(msg => {
+                    addMessage(msg.role, msg.content);
+                    messages.push({ role: msg.role, content: msg.content });
+                });
+            } catch (error) {
+                console.error('Failed to load conversation:', error);
+            }
+        }
+
+        async function startNewChat() {
+            if (!canvasUserId) {
+                currentConversationId = null;
+                messages = [];
+                document.getElementById('chatBox').innerHTML = '';
+                renderConversations();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ canvas_user_id: canvasUserId, title: 'New Chat' })
+                });
+                const data = await response.json();
+                
+                currentConversationId = data.conversation_id;
+                messages = [];
+                document.getElementById('chatBox').innerHTML = '';
+                
+                await loadConversations();
+            } catch (error) {
+                console.error('Failed to create conversation:', error);
+            }
+        }
 
         function addMessage(role, content) {
             const chatBox = document.getElementById('chatBox');
@@ -90,13 +205,13 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        model: 'gpt-4-turbo-preview', 
                         messages, 
                         temperature: 0.7, 
                         max_tokens: 1000, 
                         session_id: sessionId, 
                         user_role: userRole,
-                        canvas_user_id: canvasUserId
+                        canvas_user_id: canvasUserId,
+                        conversation_id: currentConversationId
                     })
                 });
 
@@ -109,6 +224,11 @@
                 if (data.session_id) sessionId = data.session_id;
                 addMessage('assistant', data.content);
                 messages.push({ role: 'assistant', content: data.content });
+                
+                // Refresh conversations list to show updated titles
+                if (canvasUserId) {
+                    setTimeout(loadConversations, 500);
+                }
             } catch (error) {
                 document.getElementById(thinkingId)?.remove();
                 addMessage('assistant', 'Error: ' + error.message);

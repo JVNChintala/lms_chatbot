@@ -59,7 +59,6 @@ app.include_router(lti_router)
 # ---------------------------------------------------------------------
 
 class InferenceRequest(BaseModel):
-    model: str
     messages: List[Dict[str, Any]]
     temperature: float = 0.7
     max_tokens: int = 1000
@@ -154,7 +153,7 @@ async def inference(req: InferenceRequest):
 
             return {
                 "content": result["content"],
-                "model": req.model,
+                "model": "gpt-4o-mini",
                 "usage": result.get("usage", {}),
                 "session_id": session_id,
                 "analytics": result.get("analytics", {"quick_actions": []}),
@@ -169,7 +168,7 @@ async def inference(req: InferenceRequest):
         if not openai.is_available():
             return {
                 "content": "Canvas LMS assistant is currently unavailable.",
-                "model": req.model,
+                "model": "gpt-4o-mini",
                 "usage": {},
                 "session_id": session_id,
             }
@@ -182,7 +181,7 @@ async def inference(req: InferenceRequest):
 
         return {
             "content": result.get("content", ""),
-            "model": req.model,
+            "model": "gpt-4o-mini",
             "usage": result.get("usage", {}),
             "session_id": session_id,
         }
