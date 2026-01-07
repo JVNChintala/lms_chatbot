@@ -1,5 +1,6 @@
 import hmac
 import hashlib
+import logging
 import time
 from typing import Dict, Optional
 from urllib.parse import quote, urlencode
@@ -9,9 +10,9 @@ import xml.etree.ElementTree as ET
 class LTIProvider:
     """Minimal LTI 1.1 Tool Provider with OAuth1 signature verification"""
     
-    def __init__(self, consumer_key: str, consumer_secret: str):
+    def __init__(self, consumer_key: str, consumer_secret: str = ""):
         self.consumer_key = consumer_key
-        self.consumer_secret = consumer_secret
+        self.consumer_secret = consumer_secret or ""  # Empty secret for public apps
         self.nonce_cache = {}  # In production, use Redis
         self.nonce_ttl = 300  # 5 minutes
     
@@ -25,12 +26,13 @@ class LTIProvider:
         if form_data.get('lti_message_type') != 'basic-lti-launch-request':
             raise HTTPException(400, "Invalid LTI message type")
         
-        # 2. Verify OAuth signature
-        if not self._verify_oauth_signature(request, form_data):
-            raise HTTPException(401, "Invalid OAuth signature")
+        # 2. Skip signature verification if no consumer secret (public app)
+        if self.consumer_secret:
+            if not self._verify_oauth_signature(request, form_data):
+                raise HTTPException(401, "Invalid OAuth signature")
         
-        # 3. Check replay attack (nonce + timestamp)
-        if not self._check_nonce(form_data.get('oauth_nonce'), form_data.get('oauth_timestamp')):
+        # 3. Check replay attack (nonce + timestamp) - only if we have a secret
+        if self.consumer_secret and not self._check_nonce(form_data.get('oauth_nonce'), form_data.get('oauth_timestamp')):
             raise HTTPException(401, "Replay attack detected or expired request")
         
         # 4. Extract user info
@@ -48,6 +50,7 @@ class LTIProvider:
     
     def _verify_oauth_signature(self, request: Request, params: Dict) -> bool:
         """Verify OAuth 1.0 signature"""
+        logger = logging.getLogger('Lti Provider _verify-oauth_signature')
         oauth_signature = params.get('oauth_signature')
         if not oauth_signature:
             return False
@@ -83,18 +86,27 @@ class LTIProvider:
         expected_signature = base64.b64encode(signature).decode()
         
         # Debug logging (remove in production)
+        logger.info(f"OAuth Debug Info:")
+        logger.info(f"  Method: {method}")
+        logger.info(f"  Base URL: {base_url}")
+        logger.info(f"  Consumer Secret: {self.consumer_secret[:4]}...")
+        logger.info(f"  Param Count: {len(sorted_params)}")
+        logger.info(f"  Base String: {base_string[:100]}...")
+        logger.info(f"  Key: {key[:10]}...")
+        logger.info(f"  Expected: {expected_signature}")
+        logger.info(f"  Received: {oauth_signature}")
+        
         if oauth_signature != expected_signature:
-            print(f"Signature mismatch:")
-            print(f"  Base URL: {base_url}")
-            print(f"  Params: {sorted_params[:3]}...")  # First 3 params
-            print(f"  Expected: {expected_signature}")
-            print(f"  Received: {oauth_signature}")
+            logger.info(f"\nSignature mismatch details:")
+            logger.info(f"  All params: {dict(sorted_params)}")
+            return False
         
         return hmac.compare_digest(oauth_signature, expected_signature)
     
     def _percent_encode(self, s: str) -> str:
         """OAuth percent encoding: encode everything except unreserved chars"""
-        return quote(s, safe='~')
+        # OAuth 1.0 spec: unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~"
+        return quote(str(s), safe='-._~')
     
     def _check_nonce(self, nonce: Optional[str], timestamp: Optional[str]) -> bool:
         """Prevent replay attacks using nonce and timestamp"""
