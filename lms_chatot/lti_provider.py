@@ -1,205 +1,129 @@
 import hmac
 import hashlib
-import logging
+import base64
 import time
+import os
 from typing import Dict, Optional
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlparse
 from fastapi import Request, HTTPException
 import xml.etree.ElementTree as ET
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class LTIProvider:
-    """Minimal LTI 1.1 Tool Provider with OAuth1 signature verification"""
-    
-    def __init__(self, consumer_key: str, consumer_secret: str = ""):
-        self.consumer_key = consumer_key
-        self.consumer_secret = consumer_secret or ""  # Empty secret for public apps
-        self.nonce_cache = {}  # In production, use Redis
+    """
+    Canvas-compatible LTI 1.1 Tool Provider
+    """
+
+    def __init__(self, consumer_key: str = None, consumer_secret: str = None):
+        self.consumer_key = consumer_key or os.getenv("LTI_CONSUMER_KEY")
+        self.consumer_secret = consumer_secret or os.getenv("LTI_CONSUMER_SECRET")
+
+        if not self.consumer_key or not self.consumer_secret:
+            raise RuntimeError("LTI_CONSUMER_KEY and LTI_CONSUMER_SECRET are required for Canvas LTI 1.1")
+
+        self.nonce_cache = {}
         self.nonce_ttl = 300  # 5 minutes
-    
-    def verify_launch(self, request: Request, form_data: Dict) -> Dict:
-        """Verify OAuth1 signature and extract LTI params"""
-        # 1. Check required LTI params
-        required = ['lti_message_type', 'lti_version', 'resource_link_id']
-        if not all(k in form_data for k in required):
-            raise HTTPException(400, "Missing required LTI parameters")
-        
-        if form_data.get('lti_message_type') != 'basic-lti-launch-request':
-            raise HTTPException(400, "Invalid LTI message type")
-        
-        # 2. Skip signature verification if no consumer secret (public app)
-        if self.consumer_secret:
-            if not self._verify_oauth_signature(request, form_data):
-                raise HTTPException(401, "Invalid OAuth signature")
-        
-        # 3. Check replay attack (nonce + timestamp) - only if we have a secret
-        if self.consumer_secret and not self._check_nonce(form_data.get('oauth_nonce'), form_data.get('oauth_timestamp')):
-            raise HTTPException(401, "Replay attack detected or expired request")
-        
-        # 4. Extract user info
+
+    # ---------- PUBLIC API ----------
+
+    async def verify_launch(self, request: Request, form_data: Dict) -> Dict:
+        self._validate_required_params(form_data)
+        self._verify_oauth(request, form_data)
+
         return {
-            'user_id': form_data.get('user_id'),
-            'lis_person_name_full': form_data.get('lis_person_name_full'),
-            'lis_person_contact_email_primary': form_data.get('lis_person_contact_email_primary'),
-            'roles': form_data.get('roles', '').lower(),
-            'context_id': form_data.get('context_id'),
-            'context_title': form_data.get('context_title'),
-            'resource_link_id': form_data.get('resource_link_id'),
-            'lis_outcome_service_url': form_data.get('lis_outcome_service_url'),
-            'lis_result_sourcedid': form_data.get('lis_result_sourcedid'),
+            "user_id": form_data.get("user_id"),
+            "name": form_data.get("lis_person_name_full"),
+            "email": form_data.get("lis_person_contact_email_primary"),
+            "roles": form_data.get("roles", "").lower(),
+            "context_id": form_data.get("context_id"),
+            "context_title": form_data.get("context_title"),
+            "resource_link_id": form_data.get("resource_link_id"),
+            "outcome_service_url": form_data.get("lis_outcome_service_url"),
+            "result_sourcedid": form_data.get("lis_result_sourcedid"),
         }
-    
-    def _verify_oauth_signature(self, request: Request, params: Dict) -> bool:
-        """Verify OAuth 1.0 signature"""
-        logger = logging.getLogger('Lti Provider _verify-oauth_signature')
-        oauth_signature = params.get('oauth_signature')
-        if not oauth_signature:
-            return False
-        
-        # Build base string
+
+    # ---------- OAUTH ----------
+
+    def _verify_oauth(self, request: Request, params: Dict):
+        if params.get("oauth_consumer_key") != self.consumer_key:
+            raise HTTPException(401, "Invalid consumer key")
+
+        self._check_nonce(params.get("oauth_nonce"), params.get("oauth_timestamp"))
+
+        base_string = self._build_base_string(request, params)
+        expected = self._sign(base_string)
+
+        received = params.get("oauth_signature")
+
+        if not hmac.compare_digest(received, expected):
+            raise HTTPException(401, "OAuth signature mismatch")
+
+    def _build_base_string(self, request: Request, params: Dict) -> str:
         method = request.method.upper()
-        
-        # Normalize URL: remove query params, ensure lowercase scheme/host, remove default ports
-        url = str(request.url)
-        base_url = url.split('?')[0]
-        
-        # Ensure consistent scheme (Canvas expects exact match)
-        if base_url.startswith('http://'):
-            base_url = base_url.replace(':80/', '/', 1) if ':80/' in base_url else base_url
-        elif base_url.startswith('https://'):
-            base_url = base_url.replace(':443/', '/', 1) if ':443/' in base_url else base_url
-        
-        # Collect all params except signature (including query params if any)
-        normalized_params = {k: v for k, v in params.items() if k != 'oauth_signature'}
-        
-        # Sort and encode per OAuth spec
-        sorted_params = sorted(normalized_params.items())
-        param_string = '&'.join(f"{self._percent_encode(str(k))}={self._percent_encode(str(v))}" 
-                               for k, v in sorted_params)
-        
-        # Create signature base string
-        base_string = f"{method}&{self._percent_encode(base_url)}&{self._percent_encode(param_string)}"
-        
-        # Sign with HMAC-SHA1 (key is consumer_secret&token_secret, token_secret is empty for LTI)
-        key = f"{self._percent_encode(self.consumer_secret)}&"
-        signature = hmac.new(key.encode('utf-8'), base_string.encode('utf-8'), hashlib.sha1).digest()
-        import base64
-        expected_signature = base64.b64encode(signature).decode()
-        
-        # Debug logging (remove in production)
-        logger.info(f"OAuth Debug Info:")
-        logger.info(f"  Method: {method}")
-        logger.info(f"  Base URL: {base_url}")
-        logger.info(f"  Consumer Secret: {self.consumer_secret[:4]}...")
-        logger.info(f"  Param Count: {len(sorted_params)}")
-        logger.info(f"  Base String: {base_string[:100]}...")
-        logger.info(f"  Key: {key[:10]}...")
-        logger.info(f"  Expected: {expected_signature}")
-        logger.info(f"  Received: {oauth_signature}")
-        
-        if oauth_signature != expected_signature:
-            logger.info(f"\nSignature mismatch details:")
-            logger.info(f"  All params: {dict(sorted_params)}")
-            return False
-        
-        return hmac.compare_digest(oauth_signature, expected_signature)
-    
-    def _percent_encode(self, s: str) -> str:
-        """OAuth percent encoding: encode everything except unreserved chars"""
-        # OAuth 1.0 spec: unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~"
-        return quote(str(s), safe='-._~')
-    
-    def _check_nonce(self, nonce: Optional[str], timestamp: Optional[str]) -> bool:
-        """Prevent replay attacks using nonce and timestamp"""
-        if not nonce or not timestamp:
-            return False
-        
-        try:
-            ts = int(timestamp)
-            current_time = int(time.time())
-            
-            # Check timestamp is within acceptable window (Canvas uses 90 seconds)
-            if abs(current_time - ts) > 90:
-                print(f"Timestamp outside window: {abs(current_time - ts)}s difference")
-                return False
-            
-            # Check nonce hasn't been used
-            if nonce in self.nonce_cache:
-                return False
-            
-            # Store nonce with expiry
-            self.nonce_cache[nonce] = current_time
-            
-            # Cleanup old nonces
-            self.nonce_cache = {k: v for k, v in self.nonce_cache.items() 
-                               if current_time - v < self.nonce_ttl}
-            
-            return True
-        except (ValueError, TypeError):
-            return False
-    
-    def map_to_user_role(self, roles: str) -> str:
-        """Map LTI roles to internal roles"""
-        roles_lower = roles.lower()
-        if 'instructor' in roles_lower or 'teacher' in roles_lower:
-            return 'teacher'
-        elif 'administrator' in roles_lower:
-            return 'admin'
-        else:
-            return 'student'
-    
-    def send_grade(self, service_url: str, sourcedid: str, score: float) -> bool:
-        """Send grade back to LMS via LTI Outcomes service"""
-        if not service_url or not sourcedid:
-            return False
-        
-        # Build XML request
-        message_id = f"grade_{int(time.time())}"
-        xml_body = f"""<?xml version="1.0" encoding="UTF-8"?>
-<imsx_POXEnvelopeRequest xmlns="http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0">
-  <imsx_POXHeader>
-    <imsx_POXRequestHeaderInfo>
-      <imsx_version>V1.0</imsx_version>
-      <imsx_messageIdentifier>{message_id}</imsx_messageIdentifier>
-    </imsx_POXRequestHeaderInfo>
-  </imsx_POXHeader>
-  <imsx_POXBody>
-    <replaceResultRequest>
-      <resultRecord>
-        <sourcedGUID>
-          <sourcedId>{sourcedid}</sourcedId>
-        </sourcedGUID>
-        <result>
-          <resultScore>
-            <language>en</language>
-            <textString>{score:.2f}</textString>
-          </resultScore>
-        </result>
-      </resultRecord>
-    </replaceResultRequest>
-  </imsx_POXBody>
-</imsx_POXEnvelopeRequest>"""
-        
-        # Sign and send OAuth request
-        import requests
-        from requests_oauthlib import OAuth1
-        
-        auth = OAuth1(
-            self.consumer_key,
-            self.consumer_secret,
-            signature_type='auth_header'
+
+        parsed = urlparse(str(request.url))
+        base_url = f"https://{parsed.hostname}{parsed.path}"
+
+        # Remove oauth_signature
+        items = [(k, v) for k, v in params.items() if k != "oauth_signature"]
+
+        items.sort(key=lambda x: (x[0], x[1]))
+
+        param_str = "&".join(
+            f"{self._enc(k)}={self._enc(v)}" for k, v in items
         )
-        
-        headers = {'Content-Type': 'application/xml'}
-        
-        try:
-            response = requests.post(service_url, data=xml_body, auth=auth, headers=headers, timeout=10)
-            
-            # Parse response
-            root = ET.fromstring(response.content)
-            ns = {'ims': 'http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0'}
-            status = root.find('.//ims:imsx_codeMajor', ns)
-            
-            return status is not None and status.text == 'success'
-        except Exception as e:
-            print(f"Grade passback failed: {e}")
-            return False
+
+        return "&".join([
+            method,
+            self._enc(base_url),
+            self._enc(param_str),
+        ])
+
+    def _sign(self, base_string: str) -> str:
+        key = f"{self._enc(self.consumer_secret)}&"
+        raw = hmac.new(key.encode(), base_string.encode(), hashlib.sha1).digest()
+        return base64.b64encode(raw).decode()
+
+    # ---------- VALIDATION ----------
+
+    def _validate_required_params(self, data: Dict):
+        required = [
+            "lti_message_type",
+            "lti_version",
+            "resource_link_id",
+            "oauth_consumer_key",
+            "oauth_signature",
+            "oauth_timestamp",
+            "oauth_nonce",
+            "oauth_signature_method",
+        ]
+
+        missing = [k for k in required if k not in data]
+        if missing:
+            raise HTTPException(400, f"Missing LTI parameters: {missing}")
+
+        if data["lti_message_type"] != "basic-lti-launch-request":
+            raise HTTPException(400, "Invalid LTI message type")
+
+    def _check_nonce(self, nonce: Optional[str], timestamp: Optional[str]):
+        if not nonce or not timestamp:
+            raise HTTPException(401, "Missing OAuth nonce or timestamp")
+
+        ts = int(timestamp)
+        now = int(time.time())
+
+        if abs(now - ts) > 300:
+            raise HTTPException(401, "Expired OAuth timestamp")
+
+        if nonce in self.nonce_cache:
+            raise HTTPException(401, "Replay detected")
+
+        self.nonce_cache[nonce] = now
+        self.nonce_cache = {k: v for k, v in self.nonce_cache.items() if now - v < self.nonce_ttl}
+
+    # ---------- HELPERS ----------
+
+    def _enc(self, s: str) -> str:
+        return quote(str(s), safe="-._~")
