@@ -54,25 +54,47 @@ class LTIProvider:
         
         # Build base string
         method = request.method.upper()
-        base_url = str(request.url).split('?')[0]
         
-        # Collect all params except signature
+        # Normalize URL: remove query params, ensure lowercase scheme/host, remove default ports
+        url = str(request.url)
+        base_url = url.split('?')[0]
+        
+        # Ensure consistent scheme (Canvas expects exact match)
+        if base_url.startswith('http://'):
+            base_url = base_url.replace(':80/', '/', 1) if ':80/' in base_url else base_url
+        elif base_url.startswith('https://'):
+            base_url = base_url.replace(':443/', '/', 1) if ':443/' in base_url else base_url
+        
+        # Collect all params except signature (including query params if any)
         normalized_params = {k: v for k, v in params.items() if k != 'oauth_signature'}
         
-        # Sort and encode
+        # Sort and encode per OAuth spec
         sorted_params = sorted(normalized_params.items())
-        param_string = '&'.join(f"{quote(str(k), safe='')}={quote(str(v), safe='')}" for k, v in sorted_params)
+        param_string = '&'.join(f"{self._percent_encode(str(k))}={self._percent_encode(str(v))}" 
+                               for k, v in sorted_params)
         
         # Create signature base string
-        base_string = f"{method}&{quote(base_url, safe='')}&{quote(param_string, safe='')}"
+        base_string = f"{method}&{self._percent_encode(base_url)}&{self._percent_encode(param_string)}"
         
-        # Sign with HMAC-SHA1
-        key = f"{quote(self.consumer_secret, safe='')}&"
-        signature = hmac.new(key.encode(), base_string.encode(), hashlib.sha1).digest()
+        # Sign with HMAC-SHA1 (key is consumer_secret&token_secret, token_secret is empty for LTI)
+        key = f"{self._percent_encode(self.consumer_secret)}&"
+        signature = hmac.new(key.encode('utf-8'), base_string.encode('utf-8'), hashlib.sha1).digest()
         import base64
         expected_signature = base64.b64encode(signature).decode()
         
+        # Debug logging (remove in production)
+        if oauth_signature != expected_signature:
+            print(f"Signature mismatch:")
+            print(f"  Base URL: {base_url}")
+            print(f"  Params: {sorted_params[:3]}...")  # First 3 params
+            print(f"  Expected: {expected_signature}")
+            print(f"  Received: {oauth_signature}")
+        
         return hmac.compare_digest(oauth_signature, expected_signature)
+    
+    def _percent_encode(self, s: str) -> str:
+        """OAuth percent encoding: encode everything except unreserved chars"""
+        return quote(s, safe='~')
     
     def _check_nonce(self, nonce: Optional[str], timestamp: Optional[str]) -> bool:
         """Prevent replay attacks using nonce and timestamp"""
@@ -83,8 +105,9 @@ class LTIProvider:
             ts = int(timestamp)
             current_time = int(time.time())
             
-            # Check timestamp is within acceptable window
-            if abs(current_time - ts) > self.nonce_ttl:
+            # Check timestamp is within acceptable window (Canvas uses 90 seconds)
+            if abs(current_time - ts) > 90:
+                print(f"Timestamp outside window: {abs(current_time - ts)}s difference")
                 return False
             
             # Check nonce hasn't been used
