@@ -57,22 +57,37 @@ class LTIProvider:
 
         received = params.get("oauth_signature")
 
+        print("BASE STRING:", base_string)
+        print("EXPECTED:", expected)
+        print("RECEIVED:", received)
+
         if not hmac.compare_digest(received, expected):
             raise HTTPException(401, "OAuth signature mismatch")
 
     def _build_base_string(self, request: Request, params: Dict) -> str:
         method = request.method.upper()
 
-        parsed = urlparse(str(request.url))
-        base_url = f"https://{parsed.hostname}{parsed.path}"
+        # IMPORTANT: use url_for-like reconstruction
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("host")
 
-        # Remove oauth_signature
-        items = [(k, v) for k, v in params.items() if k != "oauth_signature"]
+        base_url = f"{scheme}://{host}{request.url.path}"
 
-        items.sort(key=lambda x: (x[0], x[1]))
+        # Flatten params & remove signature
+        normalized = []
+        for k, v in params.items():
+            if k == "oauth_signature":
+                continue
+            if isinstance(v, list):
+                for item in v:
+                    normalized.append((k, str(item)))
+            else:
+                normalized.append((k, str(v)))
+
+        normalized.sort(key=lambda x: (x[0], x[1]))
 
         param_str = "&".join(
-            f"{self._enc(k)}={self._enc(v)}" for k, v in items
+            f"{self._enc(k)}={self._enc(v)}" for k, v in normalized
         )
 
         return "&".join([
@@ -80,6 +95,7 @@ class LTIProvider:
             self._enc(base_url),
             self._enc(param_str),
         ])
+
 
     def _sign(self, base_string: str) -> str:
         key = f"{self._enc(self.consumer_secret)}&"
@@ -106,6 +122,9 @@ class LTIProvider:
 
         if data["lti_message_type"] != "basic-lti-launch-request":
             raise HTTPException(400, "Invalid LTI message type")
+        
+        if data.get("oauth_signature_method") != "HMAC-SHA1":
+            raise HTTPException(401, "Unsupported OAuth signature method")
 
     def _check_nonce(self, nonce: Optional[str], timestamp: Optional[str]):
         if not nonce or not timestamp:
