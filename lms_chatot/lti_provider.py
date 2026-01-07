@@ -29,6 +29,7 @@ class LTIProvider:
     # ---------- PUBLIC API ----------
 
     def verify_launch(self, request: Request, form_data: Dict) -> Dict:
+        print("LTI PAYLOAD:", sorted(form_data.keys()))
         self._validate_required_params(form_data)
         self._verify_oauth(request, form_data)
 
