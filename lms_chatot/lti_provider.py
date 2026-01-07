@@ -28,7 +28,7 @@ class LTIProvider:
 
     # ---------- PUBLIC API ----------
 
-    async def verify_launch(self, request: Request, form_data: Dict) -> Dict:
+    def verify_launch(self, request: Request, form_data: Dict) -> Dict:
         self._validate_required_params(form_data)
         self._verify_oauth(request, form_data)
 
