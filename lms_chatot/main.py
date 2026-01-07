@@ -44,10 +44,6 @@ from usage_tracker import usage_tracker
 
 load_dotenv()
 
-# Add logging config so messages appear reliably under uvicorn/gunicorn
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger(__name__)
-
 CANVAS_URL = os.getenv("CANVAS_URL", "")
 CANVAS_TOKEN = os.getenv("CANVAS_TOKEN", "")
 
@@ -113,6 +109,7 @@ def load_html(template_name: str) -> HTMLResponse:
 
 @app.post("/inference")
 async def inference(req: InferenceRequest):
+    logger = logging.getLogger('main process')
     logger.info("Inference request: %s", req.model_dump())
     try:
         session_id = get_or_create_session(req.session_id, req.user_role)
