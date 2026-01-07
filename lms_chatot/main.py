@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -47,6 +48,7 @@ CANVAS_URL = os.getenv("CANVAS_URL", "")
 CANVAS_TOKEN = os.getenv("CANVAS_TOKEN", "")
 
 app = FastAPI(title="LLM Inference API")
+app.add_middleware(ProxyHeadersMiddleware)
 
 app.include_router(canvas_router)
 app.include_router(analytics_router)

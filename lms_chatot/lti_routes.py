@@ -56,19 +56,19 @@ async def lti_launch(
         # Create session
         session_id = session_manager.create_session(
             user_role=user_role,
-            canvas_user_id=None,  # LTI user_id is different from Canvas user_id
-            username=lti_params['lis_person_name_full'] or lti_params['user_id']
+            canvas_user_id=lti_params.get('canvas_user_id'),
+            username=lti_params['name'] or lti_params['user_id']
         )
         
         # Store LTI session for grade passback
         lti_sessions[session_id] = {
             'user_id': lti_params['user_id'],
-            'resource_link_id': lti_params['resource_link_id'],
-            'context_id': lti_params['context_id'],
-            'outcome_service_url': lti_params['lis_outcome_service_url'],
-            'result_sourcedid': lti_params['lis_result_sourcedid'],
-            'user_name': lti_params['lis_person_name_full'],
-            'user_email': lti_params['lis_person_contact_email_primary'],
+            'resource_link_id': form_dict.get('resource_link_id'),
+            'context_id': form_dict.get('context_id'),
+            'outcome_service_url': form_dict.get('lis_outcome_service_url'),
+            'result_sourcedid': form_dict.get('lis_result_sourcedid'),
+            'user_name': lti_params['name'],
+            'user_email': lti_params['email'],
         }
         
         # Create JWT token
@@ -79,7 +79,7 @@ async def lti_launch(
             session_id,
             role=user_role,
             user_token=token,
-            username=lti_params['lis_person_name_full'] or lti_params['user_id']
+            username=lti_params['name'] or lti_params['user_id']
         )
         
         # Return HTML that sets localStorage and redirects to chat only
@@ -93,7 +93,7 @@ async def lti_launch(
             <script>
                 localStorage.setItem('canvas_token', '{token}');
                 localStorage.setItem('canvas_role', '{user_role}');
-                localStorage.setItem('canvas_username', '{lti_params['lis_person_name_full'] or lti_params['user_id']}');
+                localStorage.setItem('canvas_username', '{lti_params['name'] or lti_params['user_id']}');
                 localStorage.setItem('lti_session_id', '{session_id}');
                 localStorage.setItem('lti_mode', 'true');
                 window.location.href = '/canvas-embed?user_id=' + encodeURIComponent('{lti_params['user_id']}') + '&role={user_role}';

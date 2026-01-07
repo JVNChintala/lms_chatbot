@@ -4,12 +4,12 @@ import base64
 import time
 import os
 from typing import Dict, Optional
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 from fastapi import Request, HTTPException
-import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class LTIProvider:
     """
@@ -21,21 +21,20 @@ class LTIProvider:
         self.consumer_secret = consumer_secret or os.getenv("LTI_CONSUMER_SECRET")
 
         if not self.consumer_key or not self.consumer_secret:
-            raise RuntimeError("LTI_CONSUMER_KEY and LTI_CONSUMER_SECRET are required for Canvas LTI 1.1")
+            raise RuntimeError("LTI_CONSUMER_KEY and LTI_CONSUMER_SECRET are required")
 
         self.nonce_cache = {}
-        self.nonce_ttl = 300  # 5 minutes
+        self.nonce_ttl = 300
 
     # ---------- PUBLIC API ----------
 
     def verify_launch(self, request: Request, form_data: Dict) -> Dict:
-        print("LTI PAYLOAD:", sorted(form_data.keys()))
         self._validate_required_params(form_data)
         self._verify_oauth(request, form_data)
 
-        user = {
+        return {
             "canvas_user_id": form_data.get("custom_canvas_user_id"),
-            "user_id": form_data.get("user_id"),  # LTI user id
+            "user_id": form_data.get("user_id"),
             "login_id": form_data.get("custom_canvas_user_login_id"),
             "name": form_data.get("lis_person_name_full"),
             "first_name": form_data.get("lis_person_name_given"),
@@ -45,8 +44,6 @@ class LTIProvider:
             "roles": form_data.get("roles", "").lower(),
             "ext_roles": form_data.get("ext_roles", "").lower(),
         }
-
-        return user
 
     # ---------- OAUTH ----------
 
@@ -58,12 +55,7 @@ class LTIProvider:
 
         base_string = self._build_base_string(request, params)
         expected = self._sign(base_string)
-
         received = params.get("oauth_signature")
-
-        print("BASE STRING:", base_string)
-        print("EXPECTED:", expected)
-        print("RECEIVED:", received)
 
         if not hmac.compare_digest(received, expected):
             raise HTTPException(401, "OAuth signature mismatch")
@@ -71,22 +63,15 @@ class LTIProvider:
     def _build_base_string(self, request: Request, params: Dict) -> str:
         method = request.method.upper()
 
-        # IMPORTANT: use url_for-like reconstruction
         scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
         host = request.headers.get("host")
-
         base_url = f"{scheme}://{host}{request.url.path}"
 
-        # Flatten params & remove signature
-        normalized = []
-        for k, v in params.items():
-            if k == "oauth_signature":
-                continue
-            if isinstance(v, list):
-                for item in v:
-                    normalized.append((k, str(item)))
-            else:
-                normalized.append((k, str(v)))
+        normalized = [
+            (k, str(v))
+            for k, v in params.items()
+            if k != "oauth_signature"
+        ]
 
         normalized.sort(key=lambda x: (x[0], x[1]))
 
@@ -99,7 +84,6 @@ class LTIProvider:
             self._enc(base_url),
             self._enc(param_str),
         ])
-
 
     def _sign(self, base_string: str) -> str:
         key = f"{self._enc(self.consumer_secret)}&"
@@ -126,8 +110,8 @@ class LTIProvider:
 
         if data["lti_message_type"] != "basic-lti-launch-request":
             raise HTTPException(400, "Invalid LTI message type")
-        
-        if data.get("oauth_signature_method") != "HMAC-SHA1":
+
+        if data["oauth_signature_method"] != "HMAC-SHA1":
             raise HTTPException(401, "Unsupported OAuth signature method")
 
     def _check_nonce(self, nonce: Optional[str], timestamp: Optional[str]):
@@ -144,19 +128,20 @@ class LTIProvider:
             raise HTTPException(401, "Replay detected")
 
         self.nonce_cache[nonce] = now
-        self.nonce_cache = {k: v for k, v in self.nonce_cache.items() if now - v < self.nonce_ttl}
+        self.nonce_cache = {
+            k: v for k, v in self.nonce_cache.items()
+            if now - v < self.nonce_ttl
+        }
 
     # ---------- HELPERS ----------
 
     def _enc(self, s: str) -> str:
         return quote(str(s), safe="-._~")
-    
+
     def map_to_user_role(self, roles: str) -> str:
-        """Map LTI roles to internal roles"""
-        roles_lower = roles.lower()
-        if 'instructor' in roles_lower or 'teacher' in roles_lower:
-            return 'teacher'
-        elif 'administrator' in roles_lower:
-            return 'admin'
-        else:
-            return 'student'
+        r = roles.lower()
+        if "instructor" in r or "teacher" in r:
+            return "teacher"
+        if "administrator" in r:
+            return "admin"
+        return "student"
