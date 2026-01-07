@@ -133,10 +133,14 @@ async def inference(req: InferenceRequest):
                     conv_id, "user", req.messages[-1]["content"]
                 )
 
+            # Debug logging
+            print(f"[MAIN] Creating CanvasAgent with canvas_user_id={canvas_user_id}, user_role={user_role}")
+            print(f"[MAIN] as_user_id will be: {canvas_user_id if user_role != 'admin' else None}")
+            
             agent = CanvasAgent(
                 CANVAS_URL,
                 CANVAS_TOKEN,
-                as_user_id=None if user_role == "admin" else canvas_user_id,
+                as_user_id=canvas_user_id if user_role != "admin" else None,
             )
 
             result = agent.process_message(
