@@ -5,27 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canvas AI Assistant</title>
     <style>
+        :root {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --sidebar-gradient-start: #1e3a8a;
+            --sidebar-gradient-end: #1e40af;
+            --sidebar-border: rgba(255,255,255,0.1);
+            --chat-bg: #ffffff;
+            --chat-box-bg-start: #f8fafc;
+            --chat-box-bg-end: #f1f5f9;
+            --message-assistant-bg: #ffffff;
+            --message-assistant-border: #e5e7eb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --input-bg: #f9fafb;
+            --input-border: #e5e7eb;
+            --new-chat-accent: #10b981;
+        }
+        
+        [data-theme="dark"] {
+            --bg-gradient-start: #1e293b;
+            --bg-gradient-end: #0f172a;
+            --sidebar-gradient-start: #0f172a;
+            --sidebar-gradient-end: #1e293b;
+            --sidebar-border: rgba(255,255,255,0.05);
+            --chat-bg: #1e293b;
+            --chat-box-bg-start: #0f172a;
+            --chat-box-bg-end: #1e293b;
+            --message-assistant-bg: #334155;
+            --message-assistant-border: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --input-bg: #334155;
+            --input-border: #475569;
+            --new-chat-accent: #10b981;
+        }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #f5f5f5;
             height: 100vh;
             overflow: hidden;
+            transition: background 0.3s ease;
         }
         .app-container { 
             height: 100vh;
             display: flex;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            transition: background 0.3s ease;
         }
         
         /* Sidebar */
         .sidebar { 
             width: 320px;
-            background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+            background: linear-gradient(180deg, var(--sidebar-gradient-start) 0%, var(--sidebar-gradient-end) 100%);
             display: flex;
             flex-direction: column;
             box-shadow: 4px 0 24px rgba(0,0,0,0.15);
             position: relative;
+            transition: background 0.3s ease;
         }
         .sidebar::after {
             content: '';
@@ -34,26 +73,50 @@
             right: 0;
             width: 1px;
             height: 100%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            background: linear-gradient(180deg, var(--sidebar-border) 0%, rgba(255,255,255,0.05) 100%);
         }
         .sidebar-header { 
             padding: 24px 20px;
             background: rgba(0,0,0,0.15);
             color: white;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid var(--sidebar-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .sidebar-header h3 {
+        .sidebar-header-left h3 {
             font-size: 18px;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 4px;
             letter-spacing: 0.3px;
+        }
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+            transform: rotate(20deg);
+        }
+        .new-chat-section {
+            padding: 0 20px 16px;
         }
         .new-chat-btn { 
             width: 100%;
             padding: 14px 20px;
-            background: rgba(255,255,255,0.15);
+            background: linear-gradient(135deg, var(--new-chat-accent) 0%, #059669 100%);
             color: white;
-            border: 1.5px solid rgba(255,255,255,0.25);
+            border: none;
             border-radius: 12px;
             cursor: pointer;
             font-size: 14px;
@@ -63,11 +126,11 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            box-shadow: 0 4px 12px rgba(16,185,129,0.3);
         }
         .new-chat-btn:hover {
-            background: rgba(255,255,255,0.25);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 6px 20px rgba(16,185,129,0.4);
         }
         .new-chat-btn:active {
             transform: translateY(0);
@@ -165,10 +228,11 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: #ffffff;
+            background: var(--chat-bg);
             border-radius: 16px 0 0 0;
             overflow: hidden;
             box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+            transition: background 0.3s ease;
         }
         .chat-header { 
             padding: 20px 28px;
@@ -223,7 +287,8 @@
             flex: 1;
             overflow-y: auto;
             padding: 28px;
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(180deg, var(--chat-box-bg-start) 0%, var(--chat-box-bg-end) 100%);
+            transition: background 0.3s ease;
         }
         .chat-box::-webkit-scrollbar {
             width: 8px;
@@ -266,19 +331,21 @@
             box-shadow: 0 4px 12px rgba(37,99,235,0.25);
         }
         .message.assistant .message-content { 
-            background: white;
-            color: #1f2937;
-            border: 1px solid #e5e7eb;
+            background: var(--message-assistant-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--message-assistant-border);
             border-bottom-left-radius: 4px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: background 0.3s ease, border 0.3s ease;
         }
         .input-area { 
             padding: 20px 28px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--input-border);
             display: flex;
             gap: 12px;
-            background: white;
+            background: var(--chat-bg);
             align-items: center;
+            transition: background 0.3s ease, border 0.3s ease;
         }
         .input-wrapper {
             flex: 1;
@@ -289,16 +356,17 @@
         .input-area input { 
             width: 100%;
             padding: 14px 50px 14px 20px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--input-border);
             border-radius: 28px;
             font-size: 14px;
             outline: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: #f9fafb;
+            background: var(--input-bg);
+            color: var(--text-primary);
         }
         .input-area input:focus {
             border-color: #2563eb;
-            background: white;
+            background: var(--chat-bg);
             box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
         }
         .input-actions {
@@ -397,14 +465,16 @@
         .empty-state-text {
             font-size: 20px;
             font-weight: 600;
-            color: #374151;
+            color: var(--text-primary);
             margin-bottom: 8px;
+            transition: color 0.3s ease;
         }
         .empty-state-subtitle {
             font-size: 14px;
-            color: #6b7280;
+            color: var(--text-secondary);
             margin-bottom: 32px;
             max-width: 400px;
+            transition: color 0.3s ease;
         }
         .quick-actions {
             display: grid;
@@ -415,8 +485,8 @@
         }
         .quick-action-btn {
             padding: 16px 20px;
-            background: white;
-            border: 2px solid #e5e7eb;
+            background: var(--chat-bg);
+            border: 2px solid var(--input-border);
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -437,7 +507,14 @@
         .quick-action-text {
             font-size: 14px;
             font-weight: 600;
-            color: #1f2937;
+            color: var(--text-primary);
+            transition: color 0.3s ease;
+        }
+        .user-greeting {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -446,7 +523,14 @@
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <h3>Conversations</h3>
+                <div class="sidebar-header-left">
+                    <h3>Conversations</h3>
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+                    <span id="themeIcon">🌙</span>
+                </button>
+            </div>
+            <div class="new-chat-section">
                 <button class="new-chat-btn" onclick="startNewChat()">
                     <span>✨</span>
                     <span>New Chat</span>
@@ -475,7 +559,7 @@
             <div class="chat-box" id="chatBox">
                 <div class="empty-state">
                     <div class="empty-state-icon">💬</div>
-                    <div class="empty-state-text">Start a conversation</div>
+                    <div class="user-greeting" id="userGreeting">Welcome! Start a conversation</div>
                     <div class="empty-state-subtitle">Ask me anything about your courses, assignments, or Canvas LMS</div>
                     <div class="quick-actions">
                         <button class="quick-action-btn" onclick="quickAction('List my courses')">
@@ -519,24 +603,64 @@
         let canvasUserId = null;
         let currentConversationId = null;
         let conversations = [];
+        let username = null;
 
         // Get user info from Canvas context or localStorage
         const urlParams = new URLSearchParams(window.location.search);
         canvasUserId = urlParams.get('user_id') || localStorage.getItem('canvas_user_id');
         userRole = urlParams.get('role') || localStorage.getItem('canvas_role') || 'student';
+        username = localStorage.getItem('canvas_username') || urlParams.get('username');
         
         // Convert canvas_user_id to integer if it exists
         if (canvasUserId) {
             canvasUserId = parseInt(canvasUserId);
         }
 
+        // Dark mode
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            document.getElementById('themeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        if (savedTheme === 'dark') {
+            document.getElementById('themeIcon').textContent = '☀️';
+        }
+
+        function getGreeting() {
+            const hour = new Date().getHours();
+            let greeting = 'Hello';
+            if (hour < 12) greeting = 'Good morning';
+            else if (hour < 18) greeting = 'Good afternoon';
+            else greeting = 'Good evening';
+            
+            if (username) {
+                return `${greeting}, ${username}! How can I help you today?`;
+            }
+            return `${greeting}! Start a conversation`;
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             loadConversations();
+            updateGreeting();
             document.getElementById('userInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') sendMessage();
             });
         });
+
+        function updateGreeting() {
+            const greetingEl = document.getElementById('userGreeting');
+            if (greetingEl) {
+                greetingEl.textContent = getGreeting();
+            }
+        }
 
         async function loadConversations() {
             if (!canvasUserId) return;
@@ -701,6 +825,26 @@
             sendMessage();
         }
 
+        async function generateConversationTitle(firstMessage) {
+            if (!currentConversationId) return;
+            
+            let title = firstMessage.trim();
+            if (title.length > 50) {
+                title = title.substring(0, 47) + '...';
+            }
+            
+            try {
+                await fetch(`/conversations/${currentConversationId}/title`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title })
+                });
+                loadConversations();
+            } catch (error) {
+                console.error('Failed to update title:', error);
+            }
+        }
+
         function addMessage(role, content) {
             const chatBox = document.getElementById('chatBox');
             
@@ -761,6 +905,11 @@
                 if (data.session_id) sessionId = data.session_id;
                 addMessage('assistant', data.content);
                 messages.push({ role: 'assistant', content: data.content });
+                
+                // Auto-generate title from first message
+                if (currentConversationId && messages.length === 2) {
+                    generateConversationTitle(userMessage);
+                }
                 
                 // Refresh conversations list to show updated titles
                 if (canvasUserId) {
