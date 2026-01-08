@@ -14,29 +14,19 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Routers
-from canvas_routes import router as canvas_router
-from fast_analytics import router as analytics_router
-from file_upload_routes import router as file_upload_router
-from lti_routes import router as lti_router
-
 # Core services
 from inference_systems.openai_inference import OpenAIInference
 from canvas_agent import CanvasAgent
 from canvas_integration import CanvasLMS
-from dashboard_widgets import DashboardWidgets
 
 # Auth / session / storage
 from session_manager import session_manager
-from auth import (
-    create_demo_token,
-    CanvasAuth,
-    get_user_by_login,
-    create_user_access_token,
-)
-from user_store import user_store
+from auth import create_demo_token, get_user_by_login
 from conversations_db import conversations_db
 from usage_tracker import usage_tracker
+
+# Routers
+from lti_routes import router as lti_router
 
 # ---------------------------------------------------------------------
 # App setup
@@ -49,9 +39,6 @@ CANVAS_TOKEN = os.getenv("CANVAS_TOKEN", "")
 
 app = FastAPI(title="LLM Inference API")
 
-app.include_router(canvas_router)
-app.include_router(analytics_router)
-app.include_router(file_upload_router)
 app.include_router(lti_router)
 
 # ---------------------------------------------------------------------
@@ -73,15 +60,6 @@ class InferenceRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
-
-
-class UserCreateRequest(BaseModel):
-    login_id: str
-    password: str
-    name: str
-    email: str
-    role: str
-    canvas_user_id: int
 
 
 # ---------------------------------------------------------------------
@@ -124,18 +102,19 @@ async def inference(req: InferenceRequest):
             }
 
             # Conversation tracking
-            conv_id = None
-            if canvas_user_id:
-                conv_id = req.conversation_id or conversations_db.create_conversation(
+            conv_id = req.conversation_id
+            if canvas_user_id and not conv_id:
+                conv_id = conversations_db.create_conversation(
                     canvas_user_id, "New Chat"
                 )
+            
+            if conv_id:
                 conversations_db.add_message(
                     conv_id, "user", req.messages[-1]["content"]
                 )
 
             # Debug logging
             print(f"[MAIN] Creating CanvasAgent with canvas_user_id={canvas_user_id}, user_role={user_role}")
-            print(f"[MAIN] as_user_id will be: {canvas_user_id if user_role != 'admin' else None}")
             
             agent = CanvasAgent(
                 CANVAS_URL,
@@ -160,6 +139,7 @@ async def inference(req: InferenceRequest):
                 "model": "gpt-4o-mini",
                 "usage": result.get("usage", {}),
                 "session_id": session_id,
+                "conversation_id": conv_id,
                 "analytics": result.get("analytics", {"quick_actions": []}),
                 "tool_used": result.get("tool_used", False),
                 "inference_system": result.get("inference_system", "OpenAI"),
@@ -202,17 +182,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    return HTMLResponse("<script>location.href='/canvas-login'</script>")
-
-
-@app.get("/canvas-login")
-async def canvas_login():
-    return load_html("canvas_login.html")
-
-
-@app.get("/canvas-dashboard")
-async def canvas_dashboard():
-    return load_html("vue_dashboard.html")
+    return load_html("canvas_embed.html")
 
 
 @app.get("/canvas-embed")
@@ -229,12 +199,10 @@ async def demo_login(req: LoginRequest):
     if not (CANVAS_URL and CANVAS_TOKEN):
         raise HTTPException(status_code=503, detail="Canvas LMS not configured")
 
-    # Authenticate against Canvas API
     canvas_user = get_user_by_login(CANVAS_URL, CANVAS_TOKEN, req.username)
     if not canvas_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # Determine role from enrollments
     role = "student"
     try:
         enrollments_url = f"{CANVAS_URL.rstrip('/').replace('/api/v1','')}/api/v1/users/{canvas_user['id']}/enrollments"
@@ -253,12 +221,6 @@ async def demo_login(req: LoginRequest):
         "username": req.username,
         "canvas_user_id": canvas_user["id"],
     }
-
-
-@app.post("/register-user")
-async def register_user(req: UserCreateRequest):
-    user_store.add_user(req.login_id, req.password, req.role, req.canvas_user_id)
-    return {"success": True}
 
 
 # ---------------------------------------------------------------------
@@ -300,57 +262,6 @@ async def update_title(conversation_id: int, payload: Dict[str, Any]):
 @app.get("/usage-stats")
 async def usage_stats(canvas_user_id: Optional[int] = None, days: int = 30):
     return {"usage_stats": usage_tracker.get_usage_stats(canvas_user_id, days)}
-
-
-@app.get("/analytics")
-async def get_analytics(user_role: str, canvas_user_id: Optional[int] = None):
-    """Get Canvas analytics for dashboard"""
-    try:
-        if not CANVAS_URL or not CANVAS_TOKEN:
-            return {"analytics": {"quick_actions": []}}
-        
-        from analytics_cache import analytics_cache
-        
-        # Check cache first
-        cached = analytics_cache.get_cached_analytics(user_role, canvas_user_id)
-        if cached:
-            return {"analytics": cached}
-        
-        # Generate fresh analytics
-        canvas = CanvasLMS(
-            CANVAS_URL,
-            CANVAS_TOKEN,
-            as_user_id=None if user_role == "admin" else canvas_user_id,
-        )
-        analytics = analytics_cache.get_quick_analytics(canvas, user_role)
-        
-        # Cache the result
-        analytics_cache.cache_analytics(user_role, analytics, canvas_user_id)
-        
-        return {"analytics": analytics}
-    except Exception as e:
-        return {"analytics": {"quick_actions": [], "error": str(e)}}
-
-
-@app.get("/dashboard-widgets")
-async def dashboard_widgets(user_role: str, canvas_user_id: Optional[int] = None):
-    canvas = CanvasLMS(
-        CANVAS_URL,
-        CANVAS_TOKEN,
-        as_user_id=None if user_role == "admin" else canvas_user_id,
-    )
-    manager = DashboardWidgets(canvas)
-
-    if user_role == "student":
-        widgets = manager.get_student_widgets()
-    elif user_role == "teacher":
-        widgets = manager.get_teacher_widgets()
-    elif user_role == "admin":
-        widgets = manager.get_admin_widgets()
-    else:
-        widgets = {}
-
-    return {"widgets": widgets}
 
 
 # ---------------------------------------------------------------------

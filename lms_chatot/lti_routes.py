@@ -53,13 +53,16 @@ async def lti_launch(
         # Map LTI role to internal role
         user_role = lti_provider.map_to_user_role(lti_params['roles'])
         
+        # Get Canvas user ID - try custom param first, fallback to user_id
+        canvas_user_id = lti_params.get('canvas_user_id') or lti_params.get('user_id')
+        
         # Debug LTI params
-        print(f"[LTI_ROUTES] LTI params: canvas_user_id={lti_params.get('canvas_user_id')}, user_id={lti_params.get('user_id')}, role={user_role}")
+        print(f"[LTI_ROUTES] LTI params: canvas_user_id={canvas_user_id}, user_id={lti_params.get('user_id')}, role={user_role}")
         
         # Create session
         session_id = session_manager.create_session(
             user_role=user_role,
-            canvas_user_id=lti_params.get('canvas_user_id'),
+            canvas_user_id=canvas_user_id,
             username=lti_params['name'] or lti_params['user_id']
         )
         
@@ -94,13 +97,13 @@ async def lti_launch(
         </head>
         <body>
             <script>
-                localStorage.setItem('canvas_user_id', '{lti_params.get('canvas_user_id') or lti_params['user_id']}');
+                localStorage.setItem('canvas_user_id', '{canvas_user_id}');
                 localStorage.setItem('canvas_token', '{token}');
                 localStorage.setItem('canvas_role', '{user_role}');
                 localStorage.setItem('canvas_username', '{lti_params['name'] or lti_params['user_id']}');
                 localStorage.setItem('lti_session_id', '{session_id}');
                 localStorage.setItem('lti_mode', 'true');
-                window.location.href = '/canvas-embed?user_id=' + encodeURIComponent('{lti_params.get('canvas_user_id') or lti_params['user_id']}') + '&role={user_role}';
+                window.location.href = '/canvas-embed?user_id=' + encodeURIComponent('{canvas_user_id}') + '&role={user_role}';
             </script>
             <p>Launching Canvas LMS Assistant...</p>
         </body>

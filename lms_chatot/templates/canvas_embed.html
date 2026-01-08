@@ -903,6 +903,7 @@
 
                 const data = await response.json();
                 if (data.session_id) sessionId = data.session_id;
+                if (data.conversation_id) currentConversationId = data.conversation_id;
                 addMessage('assistant', data.content);
                 messages.push({ role: 'assistant', content: data.content });
                 

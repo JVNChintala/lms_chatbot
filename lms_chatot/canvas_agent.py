@@ -59,7 +59,6 @@ class CanvasAgent:
                 self.user_info,
             )
             available_tools = CanvasTools.get_tool_definitions(self.user_role)
-            print(f"[CANVAS_AGENT] Available tools for {self.user_role}: {len(available_tools)}")
             
             # 1. Handle Pending Clarifications
             if pending_tool and pending_tool_def:
@@ -99,7 +98,6 @@ class CanvasAgent:
         conversation_history: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Resume a pending tool execution with new user input"""
-        print(f"[CANVAS_AGENT] Resuming pending tool: {pending_tool}")
         tool_result = self._execute_tool(
             user_message, 
             pending_tool, 
@@ -150,7 +148,6 @@ class CanvasAgent:
         
         # Use run_agent for full agentic workflow
         def tool_executor(tool_name, tool_args, state):
-            print(f"[CANVAS_AGENT] Executing: {tool_name} with {tool_args}")
             result = canvas_tools.execute_tool(tool_name, tool_args)
             return result
         
@@ -205,25 +202,19 @@ class CanvasAgent:
             messages = []
             for m in (conversation_history or [])[-5:]:
                 messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
-                # Include raw tool data if available
                 if m.get("raw_tool_data"):
                     tool_data_str = json.dumps(m['raw_tool_data'])
-                    print(f"[CANVAS_AGENT] Including tool data in context: {tool_data_str[:200]}...")
                     messages.append({"role": "system", "content": f"Tool data: {tool_data_str}"})
             
             messages.append({"role": "user", "content": user_message})
-            print(f"[CANVAS_AGENT] Total messages for tool extraction: {len(messages)}")
             
             result = self.inference.call_with_tools(
                 system_prompt,
                 messages,
                 [tool_def],
             )
-            print(f"[CANVAS_AGENT] Inference result for tool {tool_name}: needs_tool={result.get('needs_tool')}, has_args={bool(result.get('tool_args'))}")
 
-            # Consolidated handling of missing arguments: ask conversationally and return pending state
             if result.get("missing_args"):
-                print(f"[CANVAS_AGENT] Missing required args: {result.get('missing_args')} - using conversational mode")
                 context_prompt = (
                     f"User wants to {tool_name.replace('_', ' ')} but needs to provide: {', '.join(result.get('missing_args', []))}.\n"
                     "Ask them conversationally for this information."
@@ -242,17 +233,14 @@ class CanvasAgent:
 
             if result.get("needs_tool"):
                 tool_args = result.get("tool_args", {})
-                print(f"[CANVAS_AGENT] Executing tool {tool_name} with args: {tool_args}")
                 
                 tool_result = canvas_tools.execute_tool(
                     result.get("tool_name", tool_name),
                     tool_args,
                 )
-                print(f"[CANVAS_AGENT] Tool call result: {tool_result}")
                 self._track_usage(result, tool_used=True, tool_name=tool_name)
                 return tool_result
 
-            print(f"[CANVAS_AGENT] Tool {tool_name} execution failed - needs_tool=False")
             return {"error": "Tool execution failed"}
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
@@ -281,7 +269,6 @@ class CanvasAgent:
                 [{"role": "user", "content": json.dumps(tool_result)}],
                 [],
             )
-            print(f"[CANVAS AGENT] [format_tool_response]{result.get('content')}")
             return result.get("content", "Operation completed successfully.")
         except Exception as e:
             logger.error(f"Tool response formatting failed: {e}")
