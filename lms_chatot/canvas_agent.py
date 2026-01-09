@@ -133,11 +133,14 @@ class CanvasAgent:
         """Process a fresh user message using run_agent for multi-step workflows"""
         
         system_prompt = (
-            f"You are a Canvas LMS assistant for {self.user_role or 'user'}.\n"
-            "Execute Canvas operations step-by-step using available tools.\n"
-            "For complex requests (e.g., 'create course with modules'), call tools sequentially.\n"
-            "Use conversation history to reference created entities by their IDs.\n"
-            "Only respond with text when all operations are complete."
+            f"You are a Canvas LMS assistant for a {self.user_role or 'user'}.\n"
+            "You have access to Canvas API tools. ALWAYS use tools to perform Canvas operations.\n"
+            "When user asks to create/update/list Canvas resources, immediately call the appropriate tool.\n"
+            "Examples:\n"
+            "- 'create course Thermodynamics' -> call create_course with name='Thermodynamics', course_code='THERMO'\n"
+            "- 'list my courses' -> call list_user_courses\n"
+            "- 'create module Week 1' -> call create_module\n"
+            "For complex requests, call tools sequentially. Only respond with text when all operations are complete."
         )
         
         messages = [
