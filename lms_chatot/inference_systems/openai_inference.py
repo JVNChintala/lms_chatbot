@@ -119,7 +119,7 @@ class OpenAIInference(BaseInference):
             return {"content": "OpenAI not configured."}
 
         # 🔐 Ensure resume tracking exists
-        self.execution_state.setdefault("completed_steps", set())
+        self.execution_state.setdefault("completed_steps", [])
 
         normalized_tools = self._normalize_tools(tools)
 
@@ -160,25 +160,27 @@ class OpenAIInference(BaseInference):
 
                 # 🧠 LOGICAL COMPLETION MARKERS (CRITICAL)
                 if tool_name == "create_course" and self.execution_state.get("course_id"):
-                    self.execution_state["completed_steps"].add("course_created")
+                    if "course_created" not in self.execution_state["completed_steps"]:
+                        self.execution_state["completed_steps"].append("course_created")
 
                 if tool_name == "create_module" and "name" in tool_result:
-                    self.execution_state["completed_steps"].add(
-                        f"module:{tool_result['name']}"
-                    )
+                    marker = f"module:{tool_result['name']}"
+                    if marker not in self.execution_state["completed_steps"]:
+                        self.execution_state["completed_steps"].append(marker)
 
                 if tool_name == "add_page_to_module":
-                    self.execution_state["completed_steps"].add(
-                        f"module:{tool_result.get('module_name')}:items"
-                    )
+                    marker = f"module:{tool_result.get('module_name')}:items"
+                    if marker not in self.execution_state["completed_steps"]:
+                        self.execution_state["completed_steps"].append(marker)
 
                 if tool_name == "create_assignment":
-                    self.execution_state["completed_steps"].add(
-                        f"assignment:{tool_result.get('name')}"
-                    )
+                    marker = f"assignment:{tool_result.get('name')}"
+                    if marker not in self.execution_state["completed_steps"]:
+                        self.execution_state["completed_steps"].append(marker)
 
                 if tool_name == "create_quiz":
-                    self.execution_state["completed_steps"].add("final_quiz_created")
+                    if "final_quiz_created" not in self.execution_state["completed_steps"]:
+                        self.execution_state["completed_steps"].append("final_quiz_created")
 
                 conversation.append({
                     "role": "system",

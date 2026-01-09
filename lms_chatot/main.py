@@ -55,6 +55,7 @@ class InferenceRequest(BaseModel):
     conversation_id: Optional[int] = None
     pending_tool: Optional[str] = None
     pending_tool_def: Optional[Dict[str, Any]] = None
+    state: Optional[Dict[str, Any]] = None
 
 
 class LoginRequest(BaseModel):
@@ -116,11 +117,19 @@ async def inference(req: InferenceRequest):
             # Debug logging
             print(f"[MAIN] Creating CanvasAgent with canvas_user_id={canvas_user_id}, user_role={user_role}")
             
+            # Restore state if provided
+            if req.state:
+                print(f"[MAIN] Restoring state: {req.state}")
+            
             agent = CanvasAgent(
                 CANVAS_URL,
                 CANVAS_TOKEN,
                 as_user_id=canvas_user_id if user_role != "admin" else None,
             )
+            
+            # Restore execution state if provided
+            if req.state:
+                agent.inference.execution_state = req.state
 
             result = agent.process_message(
                 req.messages[-1]["content"],
@@ -145,6 +154,8 @@ async def inference(req: InferenceRequest):
                 "inference_system": result.get("inference_system", "OpenAI"),
                 "pending_tool": result.get("pending_tool"),
                 "pending_tool_def": result.get("pending_tool_def"),
+                "state": result.get("state", {}),
+                "status": result.get("status", "completed"),
             }
 
         # ---- Fallback OpenAI inference

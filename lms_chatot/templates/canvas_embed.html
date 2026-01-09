@@ -604,6 +604,9 @@
         let currentConversationId = null;
         let conversations = [];
         let username = null;
+        let pendingTool = null;
+        let pendingToolDef = null;
+        let executionState = null;
 
         // Get user info from Canvas context or localStorage
         const urlParams = new URLSearchParams(window.location.search);
@@ -892,7 +895,10 @@
                         session_id: sessionId, 
                         user_role: userRole,
                         canvas_user_id: canvasUserId,
-                        conversation_id: currentConversationId
+                        conversation_id: currentConversationId,
+                        pending_tool: pendingTool,
+                        pending_tool_def: pendingToolDef,
+                        state: executionState
                     })
                 });
 
@@ -904,11 +910,26 @@
                 const data = await response.json();
                 if (data.session_id) sessionId = data.session_id;
                 if (data.conversation_id) currentConversationId = data.conversation_id;
-                addMessage('assistant', data.content);
+                
+                // Store state for resume
+                if (data.state) executionState = data.state;
+                if (data.pending_tool) pendingTool = data.pending_tool;
+                if (data.pending_tool_def) pendingToolDef = data.pending_tool_def;
+                
+                // Check if paused or needs clarification
+                if (data.status === 'paused' || data.pending_tool) {
+                    addMessage('assistant', data.content + '\n\n[Continue by sending another message]');
+                } else {
+                    // Clear pending state on completion
+                    pendingTool = null;
+                    pendingToolDef = null;
+                    addMessage('assistant', data.content);
+                }
+                
                 messages.push({ role: 'assistant', content: data.content });
                 
                 // Auto-generate title from first message
-                if (currentConversationId && messages.length === 2) {
+                if (currentConversationId && messages.length === 2 && !data.pending_tool) {
                     generateConversationTitle(userMessage);
                 }
                 
