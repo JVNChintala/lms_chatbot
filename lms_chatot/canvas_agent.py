@@ -7,6 +7,7 @@ from canvas_integration import CanvasLMS
 from canvas_tools import CanvasTools
 from usage_tracker import usage_tracker
 from inference_systems.openai_inference import OpenAIInference
+from intent_permission_checker import IntentPermissionChecker
 # from inference_systems.deepseek_inference import DeepSeekInference
 
 
@@ -32,6 +33,7 @@ class CanvasAgent:
         self.user_info: Dict[str, Any] = {}
 
         self.inference = OpenAIInference()
+        self.permission_checker = IntentPermissionChecker()
         # self.inference = DeepSeekInference()
 
     # ------------------------------------------------------------------
@@ -131,6 +133,21 @@ class CanvasAgent:
         canvas_tools: CanvasTools
     ) -> Dict[str, Any]:
         """Process a fresh user message using run_agent for multi-step workflows"""
+        
+        # Check permissions before calling LLM
+        available_tool_names = {t["function"]["name"] for t in available_tools}
+        permission_check = self.permission_checker.check_permission(
+            user_message,
+            available_tool_names,
+            self.user_role
+        )
+        
+        if not permission_check["allowed"]:
+            return {
+                "content": permission_check["message"],
+                "tool_used": False,
+                "permission_denied": True,
+            }
         
         system_prompt = (
             f"You are a Canvas LMS assistant for a {self.user_role or 'user'}.\n"

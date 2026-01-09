@@ -140,8 +140,14 @@ class LTIProvider:
 
     def map_to_user_role(self, roles: str) -> str:
         r = roles.lower()
-        if "instructor" in r or "teacher" in r:
+        print(f"[LTI_PROVIDER] Mapping roles: '{roles}' (lowercase: '{r}')")
+        
+        if "instructor" in r or "teacher" in r or "teachingenrollment" in r:
+            print(f"[LTI_PROVIDER] Detected teacher role")
             return "teacher"
-        if "administrator" in r:
+        if "administrator" in r or "admin" in r or "accountadmin" in r:
+            print(f"[LTI_PROVIDER] Detected admin role")
             return "admin"
+        
+        print(f"[LTI_PROVIDER] Defaulting to student role")
         return "student"
