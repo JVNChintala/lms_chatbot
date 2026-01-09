@@ -116,6 +116,9 @@ async def lti_launch(
             username=lti_params['name'] or lti_params['user_id']
         )
         
+        # Escape username for JavaScript
+        username = (lti_params.get('name') or lti_params['user_id']).replace("'", "&#39;")
+        
         # Return HTML that sets localStorage and redirects to chat only
         html_content = f"""
         <!DOCTYPE html>
@@ -128,10 +131,10 @@ async def lti_launch(
                 localStorage.setItem('canvas_user_id', '{canvas_user_id}');
                 localStorage.setItem('canvas_token', '{token}');
                 localStorage.setItem('canvas_role', '{user_role}');
-                localStorage.setItem('canvas_username', '{(lti_params.get('name') or lti_params['user_id']).replace("'", "\\'"))}');
+                localStorage.setItem('canvas_username', '{username}');
                 localStorage.setItem('lti_session_id', '{session_id}');
                 localStorage.setItem('lti_mode', 'true');
-                window.location.href = '/canvas-embed?user_id={canvas_user_id}&role={user_role}&username=' + encodeURIComponent('{(lti_params.get('name') or lti_params['user_id']).replace("'", "\\'"))}');
+                window.location.href = '/canvas-embed?user_id={canvas_user_id}&role={user_role}&username=' + encodeURIComponent('{username}');
             </script>
             <p>Launching Canvas LMS Assistant...</p>
         </body>
