@@ -53,11 +53,39 @@ async def lti_launch(
         # Map LTI role to internal role
         user_role = lti_provider.map_to_user_role(lti_params['roles'])
         
-        # Get Canvas user ID - try custom param first, fallback to user_id
-        canvas_user_id = lti_params.get('canvas_user_id') or lti_params.get('user_id')
+        # Get Canvas user ID - try custom param first, then lookup via Canvas API
+        canvas_user_id = lti_params.get('canvas_user_id')
         
-        # Debug LTI params
-        print(f"[LTI_ROUTES] LTI params: canvas_user_id={canvas_user_id}, user_id={lti_params.get('user_id')}, role={user_role}")
+        if not canvas_user_id:
+            # Lookup Canvas user by login_id (LTI user_id)
+            from canvas_integration import CanvasLMS
+            canvas_url = os.getenv('CANVAS_URL', '')
+            canvas_token = os.getenv('CANVAS_TOKEN', '')
+            
+            if canvas_url and canvas_token:
+                try:
+                    canvas = CanvasLMS(canvas_url, canvas_token)
+                    # Search for user by login_id
+                    import requests
+                    search_url = f"{canvas_url.rstrip('/').replace('/api/v1', '')}/api/v1/accounts/self/users"
+                    params = {'search_term': lti_params.get('login_id') or lti_params['user_id']}
+                    headers = {'Authorization': f'Bearer {canvas_token}'}
+                    response = requests.get(search_url, params=params, headers=headers, timeout=5)
+                    
+                    if response.ok:
+                        users = response.json()
+                        if users:
+                            canvas_user_id = users[0]['id']
+                            print(f"[LTI_ROUTES] Found Canvas user_id={canvas_user_id} for LTI user={lti_params['user_id']}")
+                except Exception as e:
+                    print(f"[LTI_ROUTES] Failed to lookup Canvas user: {e}")
+        
+        # Fallback to LTI user_id if still not found (will have limited functionality)
+        if not canvas_user_id:
+            canvas_user_id = lti_params['user_id']
+            print(f"[LTI_ROUTES] WARNING: Using LTI user_id as canvas_user_id. Canvas API calls may fail.")
+        
+        print(f"[LTI_ROUTES] Final: canvas_user_id={canvas_user_id}, role={user_role}")
         
         # Create session
         session_id = session_manager.create_session(
@@ -100,10 +128,10 @@ async def lti_launch(
                 localStorage.setItem('canvas_user_id', '{canvas_user_id}');
                 localStorage.setItem('canvas_token', '{token}');
                 localStorage.setItem('canvas_role', '{user_role}');
-                localStorage.setItem('canvas_username', '{lti_params['name'] or lti_params['user_id']}');
+                localStorage.setItem('canvas_username', '{(lti_params.get('name') or lti_params['user_id']).replace("'", "\\'"))}');
                 localStorage.setItem('lti_session_id', '{session_id}');
                 localStorage.setItem('lti_mode', 'true');
-                window.location.href = '/canvas-embed?user_id=' + encodeURIComponent('{canvas_user_id}') + '&role={user_role}';
+                window.location.href = '/canvas-embed?user_id={canvas_user_id}&role={user_role}&username=' + encodeURIComponent('{(lti_params.get('name') or lti_params['user_id']).replace("'", "\\'"))}');
             </script>
             <p>Launching Canvas LMS Assistant...</p>
         </body>
