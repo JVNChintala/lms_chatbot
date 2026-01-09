@@ -125,7 +125,7 @@ class OpenAIInference(BaseInference):
 
         # 🟢 RESUME-SAFE SYSTEM PROMPT
         conversation = [
-            self._build_resume_guard(system_prompt)
+            self._build_resume_guard(system_prompt, tools)
         ] + messages
 
         idle_steps = 0
@@ -182,9 +182,11 @@ class OpenAIInference(BaseInference):
                     if "final_quiz_created" not in self.execution_state["completed_steps"]:
                         self.execution_state["completed_steps"].append("final_quiz_created")
 
+                # Inject state context with IDs for chaining
+                state_context = self._build_state_context()
                 conversation.append({
                     "role": "system",
-                    "content": f"Tool '{tool_name}' executed. Result: {json.dumps(tool_result)}",
+                    "content": f"Tool '{tool_name}' executed. Result: {json.dumps(tool_result)}\n\n{state_context}",
                 })
                 continue
 
@@ -294,14 +296,30 @@ class OpenAIInference(BaseInference):
             "reason": reason,
         }
 
-    def _build_resume_guard(self, base_prompt: str) -> Dict[str, str]:
+    def _build_resume_guard(self, base_prompt: str, tools: List[Dict[str, Any]]) -> Dict[str, str]:
         """
         Injects authoritative resume constraints for the LLM.
         """
         completed = sorted(self.execution_state.get("completed_steps", []))
 
+        state_ids = []
+        if self.execution_state.get("course_id"):
+            state_ids.append(f"course_id={self.execution_state['course_id']}")
+        if self.execution_state.get("modules"):
+            for name, mid in self.execution_state["modules"].items():
+                state_ids.append(f"module '{name}' id={mid}")
+
+        state_context = "\n".join(state_ids) if state_ids else "No IDs available yet."
+
         if not completed:
-            return {"role": "system", "content": base_prompt}
+            return {
+                "role": "system",
+                "content": (
+                    f"{base_prompt}\n\n"
+                    "CRITICAL: When creating resources, use IDs from tool results for subsequent operations.\n"
+                    f"Current state:\n{state_context}"
+                )
+            }
 
         completed_text = "\n".join(f"- {c}" for c in completed)
 
@@ -316,7 +334,9 @@ class OpenAIInference(BaseInference):
                 "- Do NOT recreate existing courses, modules, pages, assignments, or quizzes.\n"
                 "- Continue ONLY with steps that are not completed yet.\n"
                 "- Assume completed items exist and are published.\n"
-                "- If unsure, prefer ADDING missing items over recreating parents.\n"
+                "- If unsure, prefer ADDING missing items over recreating parents.\n\n"
+                "CRITICAL: Use these IDs for subsequent operations:\n"
+                f"{state_context}"
             )
         }
 
@@ -342,6 +362,17 @@ class OpenAIInference(BaseInference):
 
         if "quiz_id" in result:
             self.execution_state["quizzes"][result.get("title", "quiz")] = result["quiz_id"]
+
+    def _build_state_context(self) -> str:
+        """Build context string with current IDs for tool chaining"""
+        parts = []
+        if self.execution_state.get("course_id"):
+            parts.append(f"Current course_id: {self.execution_state['course_id']}")
+        if self.execution_state.get("modules"):
+            parts.append(f"Available modules: {json.dumps(self.execution_state['modules'])}")
+        if self.execution_state.get("assignments"):
+            parts.append(f"Created assignments: {json.dumps(self.execution_state['assignments'])}")
+        return "\n".join(parts) if parts else ""
 
     # ------------------------------------------------------------------
     # TOOL NORMALIZATION

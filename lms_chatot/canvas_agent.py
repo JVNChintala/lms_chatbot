@@ -134,14 +134,14 @@ class CanvasAgent:
         
         system_prompt = (
             f"You are a Canvas LMS assistant for a {self.user_role or 'user'}.\n"
-            "You have access to Canvas API tools. ALWAYS use tools to perform Canvas operations.\n"
-            "When user asks to create/update/list Canvas resources, immediately call the appropriate tool.\n"
-            "If the user requests creating a course but does not provide a course_code, you MUST generate a reasonable course_code by uppercasing the name, removing non-alphanumeric characters, and truncating to 10 characters.\n"
-            "Examples:\n"
-            "- 'create course Thermodynamics' -> call create_course with name='Thermodynamics', course_code='THERMODYN'\n"
-            "- 'list my courses' -> call list_user_courses\n"
-            "- 'create module Week 1' -> call create_module\n"
-            "For complex requests, call tools sequentially. Only respond with text when all operations are complete."
+            "You have access to Canvas API tools. ALWAYS use tools to perform Canvas operations.\n\n"
+            "CRITICAL CHAINING RULES:\n"
+            "1. After creating a resource (course, module, etc.), use the returned ID for subsequent operations\n"
+            "2. Example: create_course returns course_id → use that course_id to create_module\n"
+            "3. Example: create_module returns module_id → use that module_id to add_page_to_module\n"
+            "4. NEVER call list/search tools to find IDs you just created - use the IDs from tool results\n\n"
+            "When user requests creating a course but does not provide a course_code, generate one by uppercasing the name, removing non-alphanumeric characters, and truncating to 10 characters.\n"
+            "For complex requests, call tools sequentially using IDs from previous results."
         )
         
         messages = [
