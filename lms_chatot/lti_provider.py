@@ -33,6 +33,27 @@ class LTIProvider:
     def verify_launch(self, request: Request, form_data: Dict) -> Dict:
         self._validate_required_params(form_data)
         self._verify_oauth(request, form_data)
+        
+        # Debug: Log all LTI payload keys
+        logger.info("[LTI_PROVIDER] === LTI PAYLOAD DEBUG ===")
+        logger.info(f"[LTI_PROVIDER] All keys received: {sorted(form_data.keys())}")
+        
+        # Log role-related fields
+        role_fields = {k: v for k, v in form_data.items() if 'role' in k.lower()}
+        logger.info(f"[LTI_PROVIDER] Role fields: {role_fields}")
+        
+        # Log user-related fields
+        user_fields = {k: v for k, v in form_data.items() if 'user' in k.lower() or 'person' in k.lower()}
+        logger.info(f"[LTI_PROVIDER] User fields: {user_fields}")
+        
+        # Log custom fields
+        custom_fields = {k: v for k, v in form_data.items() if k.startswith('custom_')}
+        logger.info(f"[LTI_PROVIDER] Custom fields: {custom_fields}")
+        
+        # Log context fields
+        context_fields = {k: v for k, v in form_data.items() if 'context' in k.lower()}
+        logger.info(f"[LTI_PROVIDER] Context fields: {context_fields}")
+        logger.info("[LTI_PROVIDER] === END PAYLOAD DEBUG ===")
 
         return {
             "canvas_user_id": form_data.get("custom_canvas_user_id"),
@@ -44,6 +65,7 @@ class LTIProvider:
             "email": form_data.get("lis_person_contact_email_primary"),
             "avatar": form_data.get("user_image"),
             "roles": form_data.get("roles", "").lower(),
+            "context_roles": form_data.get("custom_canvas_course_role", form_data.get("ext_roles", "")).lower(),
             "ext_roles": form_data.get("ext_roles", "").lower(),
         }
 

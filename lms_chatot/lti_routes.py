@@ -50,8 +50,9 @@ async def lti_launch(
         # Verify OAuth signature and extract params
         lti_params = lti_provider.verify_launch(request, form_dict)
         
-        # Map LTI role to internal role
-        user_role = lti_provider.map_to_user_role(lti_params['roles'])
+        # Map LTI role to internal role - use context roles, ignore system roles
+        context_roles = lti_params.get('context_roles', '')
+        user_role = lti_provider.map_to_user_role(context_roles if context_roles else lti_params['roles'])
         
         # Get Canvas user ID - try custom param first, then lookup via Canvas API
         canvas_user_id = lti_params.get('canvas_user_id')
