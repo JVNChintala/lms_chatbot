@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, List, Any, Callable
 from canvas_integration import CanvasLMS
 from canvas_tools_schemas import CanvasToolSchemas
@@ -182,10 +183,18 @@ class CanvasTools:
 
     def _create_course(self, args: dict):
         print(f"[CANVAS_TOOLS] [Arguments] {args}")
+        # Ensure there's a course_code; generate one from the name if missing
+        name = args.get("name")
+        course_code = args.get("course_code")
+        if not course_code and name:
+            # Uppercase, keep alphanumeric, truncate to 10 chars
+            cleaned = re.sub(r'[^0-9A-Za-z]', '', name).upper()
+            course_code = cleaned[:10] if cleaned else f"C{int(__import__('time').time())}"
+
         course = self.admin_canvas.create_course(
             account_id=1,
-            name=args["name"],
-            course_code=args["course_code"],
+            name=name,
+            course_code=course_code,
             description=args.get("description"),
         )
         print(f"[CANVAS_TOOLS] create_course result type: {type(course)}")
