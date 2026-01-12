@@ -2,63 +2,71 @@
     <style>
         /* Widget Root & Scoped Variables */
         #canvas-ai-widget-root {
-            --bg-gradient-start: #667eea;
-            --bg-gradient-end: #764ba2;
-            --sidebar-gradient-start: #1e3a8a;
-            --sidebar-gradient-end: #1e40af;
-            --sidebar-border: rgba(255, 255, 255, 0.1);
-            --chat-bg: #ffffff;
-            --chat-box-bg-start: #f8fafc;
-            --chat-box-bg-end: #f1f5f9;
-            --message-assistant-bg: #ffffff;
-            --message-assistant-border: #e5e7eb;
-            --text-primary: #1f2937;
-            --text-secondary: #6b7280;
-            --input-bg: #f9fafb;
-            --input-border: #e5e7eb;
-            --new-chat-accent: #10b981;
+            --cai-bg-gradient-start: #667eea;
+            --cai-bg-gradient-end: #764ba2;
+            --cai-sidebar-gradient-start: #1e3a8a;
+            --cai-sidebar-gradient-end: #1e40af;
+            --cai-sidebar-border: rgba(255, 255, 255, 0.1);
+            --cai-chat-bg: #ffffff;
+            --cai-chat-box-bg-start: #f8fafc;
+            --cai-chat-box-bg-end: #f1f5f9;
+            --cai-message-assistant-bg: #ffffff;
+            --cai-message-assistant-border: #e5e7eb;
+            --cai-text-primary: #1f2937;
+            --cai-text-secondary: #6b7280;
+            --cai-input-bg: #f9fafb;
+            --cai-input-border: #e5e7eb;
+            --cai-new-chat-accent: #10b981;
 
             position: fixed;
             bottom: 20px;
             right: 20px;
-            z-index: 9999;
+            z-index: 99999;
+            /* Ensure it's on top of everything */
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: normal;
         }
 
         #canvas-ai-widget-root[data-theme="dark"] {
-            --bg-gradient-start: #1e293b;
-            --bg-gradient-end: #0f172a;
-            --sidebar-gradient-start: #0f172a;
-            --sidebar-gradient-end: #1e293b;
-            --sidebar-border: rgba(255, 255, 255, 0.05);
-            --chat-bg: #1e293b;
-            --chat-box-bg-start: #0f172a;
-            --chat-box-bg-end: #1e293b;
-            --message-assistant-bg: #334155;
-            --message-assistant-border: #475569;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --input-bg: #334155;
-            --input-border: #475569;
-            --new-chat-accent: #10b981;
+            --cai-bg-gradient-start: #1e293b;
+            --cai-bg-gradient-end: #0f172a;
+            --cai-sidebar-gradient-start: #0f172a;
+            --cai-sidebar-gradient-end: #1e293b;
+            --cai-sidebar-border: rgba(255, 255, 255, 0.05);
+            --cai-chat-bg: #1e293b;
+            --cai-chat-box-bg-start: #0f172a;
+            --cai-chat-box-bg-end: #1e293b;
+            --cai-message-assistant-bg: #334155;
+            --cai-message-assistant-border: #475569;
+            --cai-text-primary: #f1f5f9;
+            --cai-text-secondary: #94a3b8;
+            --cai-input-bg: #334155;
+            --cai-input-border: #475569;
+            --cai-new-chat-accent: #10b981;
         }
 
-        /* Resets inside widget */
+        /* Resets inside widget to prevent external styles from leaking in */
         #canvas-ai-widget-root * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            border: none;
+            outline: none;
+        }
+
+        #canvas-ai-widget-root button {
+            background: none;
+            cursor: pointer;
+            font-family: inherit;
         }
 
         /* Widget Toggle Button */
-        #canvas-ai-widget-root .canvas-ai-toggle-btn {
+        #canvas-ai-widget-root .cai-toggle-btn {
             width: 60px;
             height: 60px;
             border-radius: 50%;
             background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-            border: none;
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -71,33 +79,32 @@
             z-index: 10001;
         }
 
-        #canvas-ai-widget-root .canvas-ai-toggle-btn:hover {
+        #canvas-ai-widget-root .cai-toggle-btn:hover {
             transform: scale(1.1);
             box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
         }
 
-        #canvas-ai-widget-root .canvas-ai-toggle-btn .toggle-icon {
+        #canvas-ai-widget-root .cai-toggle-btn .cai-toggle-icon {
             transition: transform 0.3s;
         }
 
-        #canvas-ai-widget-root.open .canvas-ai-toggle-btn {
+        #canvas-ai-widget-root.open .cai-toggle-btn {
             transform: rotate(45deg);
             background: #ef4444;
             box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
 
         /* Main App Container */
-        #canvas-ai-widget-root .app-container {
+        #canvas-ai-widget-root .cai-app-container {
             width: 400px;
             height: 600px;
             max-height: calc(100vh - 100px);
             max-width: calc(100vw - 40px);
-            background: var(--chat-bg);
+            background: var(--cai-chat-bg);
             border-radius: 16px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            /* Stack sidebar and chat? No, overlay sidebar */
             position: absolute;
             bottom: 80px;
             right: 0;
@@ -110,16 +117,16 @@
             border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
-        #canvas-ai-widget-root.open .app-container {
+        #canvas-ai-widget-root.open .cai-app-container {
             opacity: 1;
             transform: scale(1) translateY(0);
             pointer-events: auto;
         }
 
-        /* Sidebar (Overlay in widget mode) */
-        #canvas-ai-widget-root .sidebar {
+        /* Sidebar */
+        #canvas-ai-widget-root .cai-sidebar {
             width: 280px;
-            background: linear-gradient(180deg, var(--sidebar-gradient-start) 0%, var(--sidebar-gradient-end) 100%);
+            background: linear-gradient(180deg, var(--cai-sidebar-gradient-start) 0%, var(--cai-sidebar-gradient-end) 100%);
             display: flex;
             flex-direction: column;
             box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
@@ -132,11 +139,11 @@
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        #canvas-ai-widget-root .sidebar.active {
+        #canvas-ai-widget-root .cai-sidebar.active {
             transform: translateX(0);
         }
 
-        #canvas-ai-widget-root .sidebar-overlay {
+        #canvas-ai-widget-root .cai-sidebar-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -149,50 +156,50 @@
             transition: opacity 0.3s;
         }
 
-        #canvas-ai-widget-root .sidebar.active~.sidebar-overlay {
+        #canvas-ai-widget-root .cai-sidebar.active~.cai-sidebar-overlay {
             opacity: 1;
             pointer-events: auto;
         }
 
-        /* Sidebar content adjustments */
-        #canvas-ai-widget-root .sidebar-header {
+        /* Sidebar content */
+        #canvas-ai-widget-root .cai-sidebar-header {
             padding: 20px;
             background: rgba(0, 0, 0, 0.15);
             color: white;
-            border-bottom: 1px solid var(--sidebar-border);
+            border-bottom: 1px solid var(--cai-sidebar-border);
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        #canvas-ai-widget-root .sidebar-header h3 {
+        #canvas-ai-widget-root .cai-sidebar-header h3 {
             font-size: 16px;
             font-weight: 600;
+            color: white;
         }
 
-        #canvas-ai-widget-root .theme-toggle {
+        #canvas-ai-widget-root .cai-theme-toggle {
             width: 36px;
             height: 36px;
-            border: none;
             background: rgba(255, 255, 255, 0.1);
             color: white;
             border-radius: 8px;
-            cursor: pointer;
             font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        #canvas-ai-widget-root .new-chat-section {
+        #canvas-ai-widget-root .cai-new-chat-section {
             padding: 16px;
         }
 
-        #canvas-ai-widget-root .new-chat-btn {
+        #canvas-ai-widget-root .cai-new-chat-btn {
             width: 100%;
             padding: 12px 16px;
-            background: linear-gradient(135deg, var(--new-chat-accent) 0%, #059669 100%);
+            background: linear-gradient(135deg, var(--cai-new-chat-accent) 0%, #059669 100%);
             color: white;
-            border: none;
             border-radius: 10px;
-            cursor: pointer;
             font-size: 14px;
             font-weight: 600;
             display: flex;
@@ -201,32 +208,36 @@
             gap: 8px;
         }
 
-        #canvas-ai-widget-root .conversations-list {
+        #canvas-ai-widget-root .cai-conversations-list {
             flex: 1;
             overflow-y: auto;
             padding: 12px;
         }
 
-        #canvas-ai-widget-root .conversation-item {
+        #canvas-ai-widget-root .cai-conversation-item {
             padding: 12px;
             margin-bottom: 6px;
             border-radius: 8px;
             font-size: 14px;
+            color: white;
+            cursor: pointer;
+        }
+
+        #canvas-ai-widget-root .cai-conversation-item:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
 
         /* Chat Area */
-        #canvas-ai-widget-root .chat-container {
+        #canvas-ai-widget-root .cai-chat-container {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: var(--chat-bg);
+            background: var(--cai-chat-bg);
             height: 100%;
             width: 100%;
-            border-radius: 0;
-            /* Already in rounded container */
         }
 
-        #canvas-ai-widget-root .chat-header {
+        #canvas-ai-widget-root .cai-chat-header {
             padding: 16px 20px;
             background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
             color: white;
@@ -236,87 +247,173 @@
             z-index: 2;
         }
 
-        #canvas-ai-widget-root .menu-btn {
-            background: transparent;
-            border: none;
+        #canvas-ai-widget-root .cai-menu-btn {
             color: white;
             font-size: 20px;
-            cursor: pointer;
             padding: 4px;
             margin-right: 12px;
             display: flex;
         }
 
-        #canvas-ai-widget-root .chat-header-text h2 {
+        #canvas-ai-widget-root .cai-chat-header-text h2 {
             font-size: 16px;
             margin: 0;
+            color: white;
         }
 
-        #canvas-ai-widget-root .chat-header-subtitle {
+        #canvas-ai-widget-root .cai-chat-header-subtitle {
             font-size: 11px;
             opacity: 0.8;
+            color: rgba(255, 255, 255, 0.9);
         }
 
-        #canvas-ai-widget-root .chat-box {
+        #canvas-ai-widget-root .cai-chat-box {
             flex: 1;
             padding: 16px;
-            background: linear-gradient(180deg, var(--chat-box-bg-start) 0%, var(--chat-box-bg-end) 100%);
+            background: linear-gradient(180deg, var(--cai-chat-box-bg-start) 0%, var(--cai-chat-box-bg-end) 100%);
             overflow-y: auto;
+            color: var(--cai-text-primary);
         }
 
-        #canvas-ai-widget-root .message {
+        #canvas-ai-widget-root .cai-message {
             margin-bottom: 16px;
             display: flex;
         }
 
-        #canvas-ai-widget-root .message-content {
+        #canvas-ai-widget-root .cai-message-content {
             padding: 12px 16px;
             border-radius: 12px;
             font-size: 13px;
+            line-height: 1.5;
         }
 
-        #canvas-ai-widget-root .message.user .message-content {
+        #canvas-ai-widget-root .cai-message.user {
+            justify-content: flex-end;
+        }
+
+        #canvas-ai-widget-root .cai-message.user .cai-message-content {
             background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
             color: white;
         }
 
-        #canvas-ai-widget-root .message.assistant .message-content {
-            background: var(--message-assistant-bg);
-            color: var(--text-primary);
-            border: 1px solid var(--message-assistant-border);
+        #canvas-ai-widget-root .cai-message.assistant .cai-message-content {
+            background: var(--cai-message-assistant-bg);
+            color: var(--cai-text-primary);
+            border: 1px solid var(--cai-message-assistant-border);
         }
 
-        #canvas-ai-widget-root .input-area {
+        #canvas-ai-widget-root .cai-input-area {
             padding: 16px;
-            background: var(--chat-bg);
-            border-top: 1px solid var(--input-border);
-        }
-
-        #canvas-ai-widget-root .input-area input {
-            padding: 12px 16px;
-            font-size: 13px;
-        }
-
-        #canvas-ai-widget-root .input-area button.send-btn {
-            padding: 12px 20px;
-        }
-
-        /* Empty State & Grids */
-        #canvas-ai-widget-root .quick-actions {
-            grid-template-columns: 1fr;
-            /* Single column in widget */
+            background: var(--cai-chat-bg);
+            border-top: 1px solid var(--cai-input-border);
+            display: flex;
             gap: 8px;
         }
 
-        #canvas-ai-widget-root .quick-action-btn {
-            padding: 12px;
+        #canvas-ai-widget-root .cai-input-wrapper {
+            flex: 1;
+        }
+
+        #canvas-ai-widget-root .cai-input-area input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 13px;
+            border: 1px solid var(--cai-input-border);
+            border-radius: 20px;
+            background: var(--cai-input-bg);
+            color: var(--cai-text-primary);
+        }
+
+        #canvas-ai-widget-root .cai-input-area button.cai-send-btn {
+            padding: 0 20px;
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            color: white;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Empty State */
+        #canvas-ai-widget-root .cai-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #canvas-ai-widget-root .cai-empty-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        #canvas-ai-widget-root .cai-empty-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--cai-text-primary);
+        }
+
+        #canvas-ai-widget-root .cai-empty-sub {
+            color: var(--cai-text-secondary);
+            margin-bottom: 20px;
             font-size: 13px;
         }
 
+        #canvas-ai-widget-root .cai-quick-actions {
+            display: grid;
+            width: 100%;
+            max-width: 260px;
+            gap: 8px;
+        }
+
+        #canvas-ai-widget-root .cai-quick-action-btn {
+            padding: 12px;
+            font-size: 13px;
+            background: var(--cai-chat-bg);
+            border: 1px solid var(--cai-input-border);
+            border-radius: 8px;
+            color: var(--cai-text-primary);
+            text-align: left;
+        }
+
+        #canvas-ai-widget-root .cai-quick-action-btn:hover {
+            border-color: #2563eb;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
         /* Thinking animation */
-        #canvas-ai-widget-root .thinking .dot {
+        #canvas-ai-widget-root .cai-thinking .cai-dot {
+            display: inline-block;
             width: 6px;
             height: 6px;
+            background: #9ca3af;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: cai-bounce 1s infinite;
+        }
+
+        @keyframes cai-bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
+        }
+
+        /* Error Banner */
+        #canvas-ai-widget-root .cai-error-banner {
+            padding: 12px;
+            background: #fee2e2;
+            color: #b91c1c;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #fecaca;
         }
 
         /* Responsive */
@@ -333,14 +430,14 @@
                 pointer-events: auto;
             }
 
-            #canvas-ai-widget-root .app-container {
+            #canvas-ai-widget-root .cai-app-container {
                 width: 100%;
                 height: calc(100% - 70px);
                 bottom: 70px;
                 border-radius: 16px 16px 0 0;
             }
 
-            #canvas-ai-widget-root .canvas-ai-toggle-btn {
+            #canvas-ai-widget-root .cai-toggle-btn {
                 bottom: 16px;
                 right: 16px;
             }
@@ -348,55 +445,55 @@
     </style>
 
     <!-- UI -->
-    <button class="canvas-ai-toggle-btn" id="canvasAiToggle" onclick="window.CanvasAI.toggleWidget()">
-        <span class="toggle-icon">💬</span>
+    <button class="cai-toggle-btn" id="canvasAiToggle" onclick="window.CanvasAI.toggleWidget()">
+        <span class="cai-toggle-icon">💬</span>
     </button>
 
-    <div class="app-container">
+    <div class="cai-app-container">
         <!-- Sidebar -->
-        <div class="sidebar" id="canvasAiSidebar">
-            <div class="sidebar-header">
+        <div class="cai-sidebar" id="canvasAiSidebar">
+            <div class="cai-sidebar-header">
                 <h3>Conversations</h3>
-                <button class="theme-toggle" onclick="window.CanvasAI.toggleTheme()" title="Toggle dark mode">
-                    <span id="themeIcon">🌙</span>
+                <button class="cai-theme-toggle" onclick="window.CanvasAI.toggleTheme()" title="Toggle dark mode">
+                    <span id="caiThemeIcon">🌙</span>
                 </button>
             </div>
-            <div class="new-chat-section">
-                <button class="new-chat-btn" onclick="window.CanvasAI.startNewChat()">
+            <div class="cai-new-chat-section">
+                <button class="cai-new-chat-btn" onclick="window.CanvasAI.startNewChat()">
                     <span>✨</span> New Chat
                 </button>
             </div>
-            <div class="conversations-list" id="conversationsList"></div>
+            <div class="cai-conversations-list" id="caiConversationsList"></div>
         </div>
 
         <!-- Overlay to close sidebar -->
-        <div class="sidebar-overlay" onclick="window.CanvasAI.toggleSidebar()"></div>
+        <div class="cai-sidebar-overlay" onclick="window.CanvasAI.toggleSidebar()"></div>
 
         <!-- Chat -->
-        <div class="chat-container">
-            <div class="chat-header">
-                <div class="chat-header-left">
-                    <button class="menu-btn" onclick="window.CanvasAI.toggleSidebar()">☰</button>
-                    <div class="chat-header-text">
+        <div class="cai-chat-container">
+            <div class="cai-chat-header">
+                <div class="cai-chat-header-text" style="display: flex; align-items: center;">
+                    <button class="cai-menu-btn" onclick="window.CanvasAI.toggleSidebar()">☰</button>
+                    <div>
                         <h2>AI Assistant</h2>
-                        <div class="chat-header-subtitle">Canvas LMS Helper</div>
+                        <div class="cai-chat-header-subtitle">Canvas LMS Helper</div>
                     </div>
                 </div>
-                <div class="status-badge" style="font-size: 10px; padding: 4px 8px;">
-                    <div class="status-dot" style="width: 6px; height: 6px;"></div>
+                <div
+                    style="font-size: 10px; padding: 4px 8px; background: rgba(255,255,255,0.2); border-radius: 10px; color: white;">
                     <span>Online</span>
                 </div>
             </div>
 
-            <div class="chat-box" id="chatBox">
+            <div class="cai-chat-box" id="caiChatBox">
                 <!-- Content injected via JS -->
             </div>
 
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <input type="text" id="userInput" placeholder="Ask me anything..." />
+            <div class="cai-input-area">
+                <div class="cai-input-wrapper">
+                    <input type="text" id="caiUserInput" placeholder="Ask me anything..." />
                 </div>
-                <button id="sendBtn" class="send-btn" onclick="window.CanvasAI.sendMessage()">
+                <button id="caiSendBtn" class="cai-send-btn" onclick="window.CanvasAI.sendMessage()">
                     <span>🚀</span>
                 </button>
             </div>
@@ -433,19 +530,15 @@
             function initContext() {
                 const env = window.ENV || {};
 
-                // Prefer ENV, fall back to params or storage
-                // Note: window.ENV is standard in Canvas LMS
                 state.canvasUserId = env.current_user_id || localStorage.getItem('canvas_ai_user_id');
                 state.username = (env.current_user) ? env.current_user.display_name : (localStorage.getItem('canvas_ai_username') || 'Student');
 
-                // Determine role
                 if (env.current_user_roles && env.current_user_roles.some(r => ['teacher', 'admin', 'designer'].includes(r))) {
                     state.userRole = 'teacher';
                 } else {
                     state.userRole = 'student';
                 }
 
-                // Persist to local storage for consistency across pages if ENV is missing in some contexts (e.g. wrapper pages)
                 if (state.canvasUserId) localStorage.setItem('canvas_ai_user_id', state.canvasUserId);
                 if (state.username) localStorage.setItem('canvas_ai_username', state.username);
 
@@ -457,7 +550,6 @@
                 console.log('Canvas AI Widget Initialized', state);
             }
 
-            // Public API attached to window for HTML onclick handlers
             window.CanvasAI = {
                 toggleWidget: function () {
                     const root = document.getElementById(CONFIG.ROOT_ID);
@@ -465,19 +557,18 @@
 
                     if (state.isOpen) {
                         root.classList.add('open');
-                        const btn = root.querySelector('.canvas-ai-toggle-btn .toggle-icon');
+                        const btn = root.querySelector('.cai-toggle-btn .cai-toggle-icon');
                         btn.textContent = '✕';
 
-                        // Focus input only when opening
                         setTimeout(() => {
-                            const input = document.getElementById('userInput');
+                            const input = document.getElementById('caiUserInput');
                             if (input) input.focus();
                         }, 50);
 
                         if (state.messages.length === 0) renderEmptyState();
                     } else {
                         root.classList.remove('open');
-                        const btn = root.querySelector('.canvas-ai-toggle-btn .toggle-icon');
+                        const btn = root.querySelector('.cai-toggle-btn .cai-toggle-icon');
                         btn.textContent = '💬';
                     }
                 },
@@ -507,27 +598,25 @@
                     state.currentConversationId = null;
                     state.messages = [];
                     renderEmptyState();
-                    window.CanvasAI.toggleSidebar(); // Close sidebar on mobile/widget view
-
-                    // Create on backend
+                    window.CanvasAI.toggleSidebar();
                     createNewConversation();
                 },
 
                 sendMessage: sendMessage,
                 quickAction: function (text) {
-                    const input = document.getElementById('userInput');
+                    const input = document.getElementById('caiUserInput');
                     input.value = text;
                     sendMessage();
                 }
             };
 
             function updateThemeIcon(theme) {
-                const icon = document.getElementById('themeIcon');
+                const icon = document.getElementById('caiThemeIcon');
                 if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
             }
 
             async function createNewConversation() {
-                if (!state.canvasUserId) return;
+                if (!state.canvasUserId || isConfigInvalid()) return;
                 try {
                     const res = await fetch(`${CONFIG.API_BASE}/conversations`, {
                         method: 'POST',
@@ -542,24 +631,26 @@
             }
 
             async function loadConversations() {
-                if (!state.canvasUserId) return;
+                if (!state.canvasUserId || isConfigInvalid()) return;
                 try {
                     const res = await fetch(`${CONFIG.API_BASE}/conversations?canvas_user_id=${state.canvasUserId}`);
                     const data = await res.json();
                     state.conversations = data.conversations || [];
 
-                    const list = document.getElementById('conversationsList');
+                    const list = document.getElementById('caiConversationsList');
                     list.innerHTML = '';
 
                     state.conversations.forEach(conv => {
                         const item = document.createElement('div');
-                        item.className = 'conversation-item';
+                        item.className = 'cai-conversation-item';
                         item.innerHTML = `<strong>${conv.title || 'Untitled'}</strong><br><small>${new Date(conv.created_at).toLocaleDateString()}</small>`;
                         item.onclick = () => loadConversation(conv.id);
                         list.appendChild(item);
                     });
                 } catch (e) {
                     console.error('Failed to load conversations', e);
+                    const list = document.getElementById('caiConversationsList');
+                    list.innerHTML = '<div style="padding:10px; font-size:12px; opacity:0.7">Connect error</div>';
                 }
             }
 
@@ -567,7 +658,6 @@
                 state.currentConversationId = id;
                 window.CanvasAI.toggleSidebar();
 
-                // Fetch messages
                 try {
                     const res = await fetch(`${CONFIG.API_BASE}/conversations/${id}/messages`);
                     const data = await res.json();
@@ -579,39 +669,51 @@
             }
 
             function renderMessages() {
-                const box = document.getElementById('chatBox');
+                const box = document.getElementById('caiChatBox');
                 box.innerHTML = '';
                 state.messages.forEach(msg => appendMessage(msg.role, msg.content));
                 box.scrollTop = box.scrollHeight;
             }
 
             function appendMessage(role, content) {
-                const box = document.getElementById('chatBox');
+                const box = document.getElementById('caiChatBox');
                 const div = document.createElement('div');
-                div.className = `message ${role}`;
-                div.innerHTML = `<div class="message-content">${content}</div>`;
+                div.className = `cai-message ${role}`;
+                div.innerHTML = `<div class="cai-message-content">${content}</div>`;
                 box.appendChild(div);
             }
 
+            function isConfigInvalid() {
+                return CONFIG.API_BASE.includes('example.com');
+            }
+
             function renderEmptyState() {
-                const box = document.getElementById('chatBox');
+                const box = document.getElementById('caiChatBox');
                 let quickActionsHtml = `
-                <button class="quick-action-btn" onclick="window.CanvasAI.quickAction('List my courses')">📚 List my courses</button>
-                <button class="quick-action-btn" onclick="window.CanvasAI.quickAction('Show my assignments')">📝 My assignments</button>
-                <button class="quick-action-btn" onclick="window.CanvasAI.quickAction('Help me get started')">❓ Get help</button>
+                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('List my courses')">📚 List my courses</button>
+                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Show my assignments')">📝 My assignments</button>
+                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Help me get started')">❓ Get help</button>
             `;
 
-                // Only show Create Course if generic or admin (simplified check)
                 if (state.userRole === 'teacher' || state.userRole === 'admin') {
-                    quickActionsHtml += `<button class="quick-action-btn" onclick="window.CanvasAI.quickAction('Create a new course')">➕ Create course</button>`;
+                    quickActionsHtml += `<button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Create a new course')">➕ Create course</button>`;
+                }
+
+                let warningHtml = '';
+                // Check for potential Mixed Content error simulation or placeholder
+                if (location.protocol === 'https:' && CONFIG.API_BASE.includes('http:')) {
+                    warningHtml = `<div class="cai-error-banner">⚠️ <strong>Security Config:</strong> You are on HTTPS but API is HTTP. This will be blocked. Use valid HTTPS for API_BASE.</div>`;
+                } else if (isConfigInvalid()) {
+                    warningHtml = `<div class="cai-error-banner">⚠️ <strong>Setup Required:</strong> API_BASE is set to a placeholder (example.com). Please update the widget code with your backend URL.</div>`;
                 }
 
                 box.innerHTML = `
-                <div class="empty-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; padding:20px;">
-                    <div style="font-size:40px; margin-bottom:10px;">👋</div>
-                    <div style="font-weight:600; margin-bottom:8px;">Hi, ${state.username}</div>
-                    <div style="color:var(--text-secondary); margin-bottom:20px; font-size:13px;">How can I help you with Canvas today?</div>
-                    <div class="quick-actions" style="display:grid; width:100%; max-width:260px; grid-gap:8px;">
+                <div class="cai-empty-state">
+                    <div class="cai-empty-icon">👋</div>
+                    <div class="cai-empty-title">Hi, ${state.username}</div>
+                    <div class="cai-empty-sub">How can I help you with Canvas today?</div>
+                    ${warningHtml}
+                    <div class="cai-quick-actions">
                         ${quickActionsHtml}
                     </div>
                 </div>
@@ -619,20 +721,18 @@
             }
 
             async function sendMessage() {
-                const input = document.getElementById('userInput');
+                const input = document.getElementById('caiUserInput');
                 const txt = input.value.trim();
                 if (!txt) return;
 
-                // UI Update
                 appendMessage('user', txt);
                 state.messages.push({ role: 'user', content: txt });
                 input.value = '';
 
-                // Loading indicator
-                const box = document.getElementById('chatBox');
+                const box = document.getElementById('caiChatBox');
                 const thinking = document.createElement('div');
-                thinking.className = 'message assistant thinking-bubble';
-                thinking.innerHTML = `<div class="message-content thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+                thinking.className = 'cai-message assistant';
+                thinking.innerHTML = `<div class="cai-message-content cai-thinking"><span class="cai-dot"></span><span class="cai-dot"></span><span class="cai-dot"></span></div>`;
                 box.appendChild(thinking);
                 box.scrollTop = box.scrollHeight;
 
@@ -649,6 +749,10 @@
                         })
                     });
 
+                    if (!res.ok) {
+                        throw new Error(`Server returned ${res.status}`);
+                    }
+
                     const data = await res.json();
                     thinking.remove();
 
@@ -658,24 +762,20 @@
                     appendMessage('assistant', data.content);
                     state.messages.push({ role: 'assistant', content: data.content });
 
-                    // Refresh title/conv list if new
                     if (state.messages.length <= 2) loadConversations();
 
                 } catch (e) {
                     thinking.remove();
-                    appendMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+                    appendMessage('assistant', `⚠️ Connection failed: ${e.message}. Check console/SSL config.`);
                     console.error(e);
                 }
 
-                // Re-focus input if still open on web (on mobile might hide keyboard, but here generic)
                 input.focus();
             }
 
-            // Initialize on load
             initContext();
 
-            // Listen for Enter key
-            document.getElementById('userInput').addEventListener('keypress', (e) => {
+            document.getElementById('caiUserInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendMessage();
             });
 

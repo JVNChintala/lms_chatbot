@@ -203,101 +203,13 @@ async def health():
 
 @app.get("/")
 async def root():
-    # Helper to load content
-    content = ""
-    path = os.path.join(os.path.dirname(__file__), "templates", "canvas_embed.html")
-    with open(path, encoding="utf-8") as f:
-        content = f.read()
-
-    # Wrap in a demo environment
-    wrapper = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Canvas AI Widget Demo</title>
-        <style>
-            body {{ 
-                margin: 0; 
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-                background-color: #f5f5f5; 
-            }}
-            .canvas-header {{
-                background-color: #2D3B45;
-                color: white;
-                padding: 0 24px;
-                height: 60px;
-                display: flex;
-                align-items: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .canvas-logo {{ font-weight: bold; font-size: 20px; color: #fff; margin-right: 32px; }}
-            .canvas-nav {{ display: flex; gap: 20px; font-size: 14px; opacity: 0.9; }}
-            .canvas-body {{ display: flex; height: calc(100vh - 60px); }}
-            .canvas-sidebar {{
-                width: 84px;
-                background-color: #2D3B45; /* Canvas sidebar color */
-                flex-shrink: 0;
-            }}
-            .canvas-content {{
-                flex: 1;
-                padding: 40px;
-                overflow-y: auto;
-            }}
-            .course-card {{
-                background: white;
-                border: 1px solid #e1e1e1;
-                border-radius: 4px;
-                padding: 24px;
-                margin-bottom: 24px;
-                max-width: 800px;
-            }}
-            h1 {{ margin-top: 0; color: #2D3B45; }}
-            p {{ line-height: 1.6; color: #444; }}
-        </style>
-        <script>
-            // Simulate Canvas ENV variables
-            window.ENV = {{
-                current_user_id: 1,
-                current_user: {{ display_name: "Test Student" }},
-                current_user_roles: ["student"]
-            }};
-        </script>
-    </head>
-    <body>
-        <div class="canvas-header">
-            <span class="canvas-logo">Canvas</span>
-            <div class="canvas-nav">
-                <span>Dashboard</span>
-                <span>Courses</span>
-                <span>Calendar</span>
-                <span>Inbox</span>
-            </div>
-        </div>
-        <div class="canvas-body">
-            <div class="canvas-sidebar"></div>
-            <div class="canvas-content">
-                <div class="course-card">
-                    <h1>Welcome to the Demo Canvas Page</h1>
-                    <p>This page simulates a standard Canvas LMS environment. The AI Assistant widget is injected into this page just as it would be in the real LMS.</p>
-                    <p>Click the chat bubble icon in the bottom right corner to interact with the assistant.</p>
-                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-                    <p><em>This wrapper is provided for local testing purposes only.</em></p>
-                </div>
-            </div>
-        </div>
-        <!-- Injected Widget Code Below -->
-        {content}
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=wrapper)
+    return load_html("canvas_widget.html")
 
 
 @app.get("/canvas-embed")
 async def canvas_embed():
     return load_html("canvas_embed.html")
+
 
 
 # ---------------------------------------------------------------------
