@@ -19,10 +19,11 @@
             --cai-new-chat-accent: #10b981;
 
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 99999;
-            /* Ensure it's on top of everything */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: normal;
         }
@@ -78,6 +79,7 @@
             left: 0;
             right: 0;
             bottom: 0;
+            pointer-events: auto;
         }
 
         /* Sidebar */
@@ -460,9 +462,7 @@
 
             // Configuration
             const CONFIG = {
-                API_BASE: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                    ? window.location.origin
-                    : 'https://canvas-ai-backend.example.com', // Replace with absolute backend URL
+                API_BASE: window.location.origin,
                 ROOT_ID: 'canvas-ai-widget-root'
             };
 
@@ -631,12 +631,6 @@
                 }
 
                 let warningHtml = '';
-                // Check for potential Mixed Content error simulation or placeholder
-                if (location.protocol === 'https:' && CONFIG.API_BASE.includes('http:')) {
-                    warningHtml = `<div class="cai-error-banner">⚠️ <strong>Security Config:</strong> You are on HTTPS but API is HTTP. This will be blocked. Use valid HTTPS for API_BASE.</div>`;
-                } else if (isConfigInvalid()) {
-                    warningHtml = `<div class="cai-error-banner">⚠️ <strong>Setup Required:</strong> API_BASE is set to a placeholder (example.com). Please update the widget code with your backend URL.</div>`;
-                }
 
                 box.innerHTML = `
                 <div class="cai-empty-state">
