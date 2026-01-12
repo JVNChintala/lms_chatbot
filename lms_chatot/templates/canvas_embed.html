@@ -503,6 +503,21 @@
                 console.log('Canvas AI Widget Initialized', state);
             }
 
+            // Listen for Canvas context from parent
+            window.addEventListener('message', (event) => {
+                if (event.data.source === 'canvas') {
+                    state.canvasUserId = event.data.canvas_user_id;
+                    state.userRole = event.data.user_role || 'student';
+                    state.username = event.data.username || 'Canvas User';
+                    
+                    localStorage.setItem('canvas_ai_user_id', state.canvasUserId);
+                    localStorage.setItem('canvas_ai_username', state.username);
+                    
+                    console.log('Received Canvas context:', state);
+                    if (state.messages.length === 0) renderEmptyState();
+                }
+            });
+
             window.CanvasAI = {
                 toggleSidebar: function () {
                     const sidebar = document.getElementById('canvasAiSidebar');
