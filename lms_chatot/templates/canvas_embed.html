@@ -102,7 +102,7 @@
             bottom: 80px;
             right: 0;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.05s cubic-bezier(0.4, 0, 1, 1);
             transform-origin: bottom right;
             opacity: 0;
             transform: scale(0.9) translateY(20px);
@@ -410,7 +410,9 @@
 
             // Configuration
             const CONFIG = {
-                API_BASE: 'https://canvas-ai-backend.example.com', // Replace with absolute backend URL
+                API_BASE: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                    ? window.location.origin
+                    : 'https://canvas-ai-backend.example.com', // Replace with absolute backend URL
                 ROOT_ID: 'canvas-ai-widget-root'
             };
 
@@ -470,7 +472,7 @@
                         setTimeout(() => {
                             const input = document.getElementById('userInput');
                             if (input) input.focus();
-                        }, 300);
+                        }, 50);
 
                         if (state.messages.length === 0) renderEmptyState();
                     } else {
