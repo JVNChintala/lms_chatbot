@@ -203,12 +203,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    # Simple widget HTML for iframe
-    try:
-        return load_html("canvas_widget.html")
-    except:
-        # Fallback inline widget
-        return HTMLResponse(content=open(os.path.join(os.path.dirname(__file__), "templates", "canvas_widget.html")).read())
+    return load_html("canvas_embed.html")
 
 
 @app.get("/canvas-embed")

@@ -60,67 +60,24 @@
             font-family: inherit;
         }
 
-        /* Widget Toggle Button */
+        /* Widget Toggle Button - Hidden for iframe */
         #canvas-ai-widget-root .cai-toggle-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            color: white;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            z-index: 10001;
-        }
-
-        #canvas-ai-widget-root .cai-toggle-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
-        }
-
-        #canvas-ai-widget-root .cai-toggle-btn .cai-toggle-icon {
-            transition: transform 0.3s;
-        }
-
-        #canvas-ai-widget-root.open .cai-toggle-btn {
-            transform: rotate(45deg);
-            background: #ef4444;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            display: none;
         }
 
         /* Main App Container */
         #canvas-ai-widget-root .cai-app-container {
-            width: 400px;
-            height: 600px;
-            max-height: calc(100vh - 100px);
-            max-width: calc(100vw - 40px);
+            width: 100%;
+            height: 100vh;
             background: var(--cai-chat-bg);
-            border-radius: 16px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            position: absolute;
-            bottom: 80px;
+            position: fixed;
+            top: 0;
+            left: 0;
             right: 0;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            transition: all 0.05s cubic-bezier(0.4, 0, 1, 1);
-            transform-origin: bottom right;
-            opacity: 0;
-            transform: scale(0.9) translateY(20px);
-            pointer-events: none;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-
-        #canvas-ai-widget-root.open .cai-app-container {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            pointer-events: auto;
+            bottom: 0;
         }
 
         /* Sidebar */
@@ -445,10 +402,6 @@
     </style>
 
     <!-- UI -->
-    <button class="cai-toggle-btn" id="canvasAiToggle" onclick="window.CanvasAI.toggleWidget()">
-        <span class="cai-toggle-icon">💬</span>
-    </button>
-
     <div class="cai-app-container">
         <!-- Sidebar -->
         <div class="cai-sidebar" id="canvasAiSidebar">
@@ -551,28 +504,6 @@
             }
 
             window.CanvasAI = {
-                toggleWidget: function () {
-                    const root = document.getElementById(CONFIG.ROOT_ID);
-                    state.isOpen = !state.isOpen;
-
-                    if (state.isOpen) {
-                        root.classList.add('open');
-                        const btn = root.querySelector('.cai-toggle-btn .cai-toggle-icon');
-                        btn.textContent = '✕';
-
-                        setTimeout(() => {
-                            const input = document.getElementById('caiUserInput');
-                            if (input) input.focus();
-                        }, 50);
-
-                        if (state.messages.length === 0) renderEmptyState();
-                    } else {
-                        root.classList.remove('open');
-                        const btn = root.querySelector('.cai-toggle-btn .cai-toggle-icon');
-                        btn.textContent = '💬';
-                    }
-                },
-
                 toggleSidebar: function () {
                     const sidebar = document.getElementById('canvasAiSidebar');
                     state.isSidebarOpen = !state.isSidebarOpen;
@@ -774,6 +705,7 @@
             }
 
             initContext();
+            if (state.messages.length === 0) renderEmptyState();
 
             document.getElementById('caiUserInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendMessage();
