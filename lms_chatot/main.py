@@ -203,7 +203,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    return load_html("canvas_widget.html")
+    return load_html("canvas_embed.html")
 
 
 @app.get("/canvas-embed")
