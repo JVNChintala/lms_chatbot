@@ -6,6 +6,7 @@ from typing import Optional, List, Dict, Any
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import logging
@@ -38,6 +39,15 @@ CANVAS_URL = os.getenv("CANVAS_URL", "")
 CANVAS_TOKEN = os.getenv("CANVAS_TOKEN", "")
 
 app = FastAPI(title="LLM Inference API")
+
+# Enable CORS for Canvas domains
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this to match your Canvas domain(s)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(lti_router)
 
