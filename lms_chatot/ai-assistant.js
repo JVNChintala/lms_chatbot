@@ -56,20 +56,24 @@
       }
       #ai-frame {
         position: fixed;
-        top: 0;
+        top: 50px;
         right: 0;
         width: 400px;
-        height: 100vh;
+        height: calc(100vh - 50px);
         border: none;
         border-left: 1px solid var(--ic-border-light, #C7CDD1);
         display: none;
         z-index: 99;
         box-shadow: -1px 0 3px rgba(0,0,0,0.08);
       }
+      #ai-frame.open {
+        display: block;
+      }
     `;
     document.head.appendChild(style);
 
     const frame = document.getElementById("ai-frame");
+    const toggle = document.getElementById("ai-toggle");
     
     function sendCanvasContext() {
       let userRole = "student";
@@ -119,9 +123,18 @@
     
     frame.onload = () => setTimeout(sendCanvasContext, 100);
 
-    document.getElementById("ai-toggle").onclick = () => {
-      frame.style.display = frame.style.display === "none" ? "block" : "none";
-      if (frame.style.display === "block") setTimeout(sendCanvasContext, 100);
+    toggle.onclick = () => {
+      const isOpen = frame.style.display === "block";
+      frame.style.display = isOpen ? "none" : "block";
+      
+      // Close Canvas course menu if open
+      const courseMenu = document.querySelector('#course_show_secondary');
+      if (!isOpen && courseMenu && courseMenu.style.display !== 'none') {
+        const menuToggle = document.querySelector('#courseMenuToggle');
+        if (menuToggle) menuToggle.click();
+      }
+      
+      if (!isOpen) setTimeout(sendCanvasContext, 100);
     };
   });
 })();
