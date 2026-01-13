@@ -208,6 +208,7 @@
             justify-content: space-between;
             z-index: 2;
             border-bottom: 1px solid var(--cai-border);
+            flex-shrink: 0;
         }
 
         #canvas-ai-widget-root .cai-menu-btn {
@@ -278,6 +279,7 @@
             border-top: 1px solid var(--cai-border);
             display: flex;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         #canvas-ai-widget-root .cai-input-wrapper {
@@ -426,7 +428,7 @@
 
             #canvas-ai-widget-root .cai-app-container {
                 width: 100%;
-                height: calc(100% - 70px);
+                height: 100%;
                 bottom: 70px;
                 border-radius: 16px 16px 0 0;
             }
