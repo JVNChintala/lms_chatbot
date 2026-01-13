@@ -2,21 +2,15 @@
     <style>
         /* Widget Root & Scoped Variables */
         #canvas-ai-widget-root {
-            --cai-bg-gradient-start: var(--ic-brand-primary, #667eea);
-            --cai-bg-gradient-end: var(--ic-brand-primary-darkened-10, #764ba2);
-            --cai-sidebar-gradient-start: var(--ic-brand-primary, #1e3a8a);
-            --cai-sidebar-gradient-end: var(--ic-brand-primary-darkened-5, #1e40af);
-            --cai-sidebar-border: rgba(255, 255, 255, 0.1);
-            --cai-chat-bg: var(--ic-brand-global-nav-bgd, #ffffff);
-            --cai-chat-box-bg-start: var(--ic-bg-light-primary, #f8fafc);
-            --cai-chat-box-bg-end: var(--ic-bg-light-secondary, #f1f5f9);
-            --cai-message-assistant-bg: var(--ic-bg-light-primary, #ffffff);
-            --cai-message-assistant-border: var(--ic-border-light, #e5e7eb);
-            --cai-text-primary: var(--ic-brand-font-color-dark, #1f2937);
-            --cai-text-secondary: var(--ic-hint-text, #6b7280);
-            --cai-input-bg: var(--ic-bg-light-primary, #f9fafb);
-            --cai-input-border: var(--ic-border-light, #e5e7eb);
-            --cai-new-chat-accent: #10b981;
+            --cai-primary: var(--ic-brand-primary, #0374B5);
+            --cai-primary-hover: var(--ic-brand-primary-darkened-5, #0374B5);
+            --cai-bg: var(--ic-brand-global-nav-bgd, #ffffff);
+            --cai-text: var(--ic-brand-font-color-dark, #2D3B45);
+            --cai-text-light: var(--ic-hint-text, #6B7780);
+            --cai-border: var(--ic-border-light, #C7CDD1);
+            --cai-input-bg: var(--ic-bg-light-neutral, #F5F5F5);
+            --cai-message-bg: #FFFFFF;
+            --cai-button-success: #00AC18;
 
             position: fixed;
             top: 0;
@@ -24,26 +18,17 @@
             width: 100%;
             height: 100%;
             z-index: 1;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: normal;
+            font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            line-height: 1.5;
         }
 
         #canvas-ai-widget-root[data-theme="dark"] {
-            --cai-bg-gradient-start: var(--ic-brand-primary, #1e293b);
-            --cai-bg-gradient-end: var(--ic-brand-primary-darkened-10, #0f172a);
-            --cai-sidebar-gradient-start: var(--ic-brand-global-nav-bgd, #0f172a);
-            --cai-sidebar-gradient-end: var(--ic-brand-global-nav-menu-item__background, #1e293b);
-            --cai-sidebar-border: rgba(255, 255, 255, 0.05);
-            --cai-chat-bg: var(--ic-brand-global-nav-bgd, #1e293b);
-            --cai-chat-box-bg-start: var(--ic-bg-dark, #0f172a);
-            --cai-chat-box-bg-end: var(--ic-bg-dark-secondary, #1e293b);
-            --cai-message-assistant-bg: var(--ic-bg-dark-secondary, #334155);
-            --cai-message-assistant-border: var(--ic-border-dark, #475569);
-            --cai-text-primary: var(--ic-brand-font-color-dark-lightened-15, #f1f5f9);
-            --cai-text-secondary: var(--ic-hint-text, #94a3b8);
-            --cai-input-bg: var(--ic-bg-dark-secondary, #334155);
-            --cai-input-border: var(--ic-border-dark, #475569);
-            --cai-new-chat-accent: #10b981;
+            --cai-bg: var(--ic-brand-global-nav-bgd, #2D3B45);
+            --cai-text: var(--ic-brand-font-color-dark-lightened-15, #FFFFFF);
+            --cai-text-light: var(--ic-hint-text, #C7CDD1);
+            --cai-border: var(--ic-border-dark, #394B58);
+            --cai-input-bg: var(--ic-bg-dark-neutral, #394B58);
+            --cai-message-bg: #394B58;
         }
 
         /* Resets inside widget to prevent external styles from leaking in */
@@ -70,7 +55,7 @@
         #canvas-ai-widget-root .cai-app-container {
             width: 100%;
             height: 100vh;
-            background: var(--cai-chat-bg);
+            background: var(--cai-bg);
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -84,16 +69,17 @@
 
         /* Sidebar */
         #canvas-ai-widget-root .cai-sidebar {
-            width: 280px;
-            background: linear-gradient(180deg, var(--cai-sidebar-gradient-start) 0%, var(--cai-sidebar-gradient-end) 100%);
+            width: 260px;
+            background: var(--cai-bg);
             display: flex;
             flex-direction: column;
-            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+            box-shadow: 1px 0 3px rgba(0, 0, 0, 0.08);
             position: absolute;
             top: 0;
             left: 0;
             bottom: 0;
             z-index: 10;
+            border-right: 1px solid var(--cai-border);
             transform: translateX(-100%);
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -122,68 +108,82 @@
 
         /* Sidebar content */
         #canvas-ai-widget-root .cai-sidebar-header {
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.15);
-            color: white;
-            border-bottom: 1px solid var(--cai-sidebar-border);
+            padding: 16px;
+            background: var(--cai-bg);
+            color: var(--cai-text);
+            border-bottom: 1px solid var(--cai-border);
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
         #canvas-ai-widget-root .cai-sidebar-header h3 {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            color: white;
+            color: var(--cai-text);
         }
 
         #canvas-ai-widget-root .cai-theme-toggle {
-            width: 36px;
-            height: 36px;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border-radius: 8px;
-            font-size: 16px;
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            color: var(--cai-text);
+            border-radius: 4px;
+            font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 1px solid var(--cai-border);
+        }
+
+        #canvas-ai-widget-root .cai-theme-toggle:hover {
+            background: var(--cai-input-bg);
         }
 
         #canvas-ai-widget-root .cai-new-chat-section {
-            padding: 16px;
+            padding: 12px;
         }
 
         #canvas-ai-widget-root .cai-new-chat-btn {
             width: 100%;
-            padding: 12px 16px;
-            background: linear-gradient(135deg, var(--cai-new-chat-accent) 0%, #059669 100%);
-            color: white;
-            border-radius: 10px;
+            padding: 10px 14px;
+            background: var(--ic-brand-button--primary-bgd, var(--cai-primary));
+            color: var(--ic-brand-button--primary-text, white);
+            border-radius: 4px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
+            border: 1px solid transparent;
+        }
+
+        #canvas-ai-widget-root .cai-new-chat-btn:hover {
+            background: var(--ic-brand-button--primary-bgd-darkened-5, var(--cai-primary-hover));
         }
 
         #canvas-ai-widget-root .cai-conversations-list {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
+            padding: 8px;
+            background: var(--cai-bg);
         }
 
         #canvas-ai-widget-root .cai-conversation-item {
-            padding: 12px;
-            margin-bottom: 6px;
-            border-radius: 8px;
-            font-size: 14px;
-            color: white;
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: var(--cai-text);
             cursor: pointer;
+            background: transparent;
+            border: 1px solid transparent;
         }
 
         #canvas-ai-widget-root .cai-conversation-item:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--cai-input-bg);
+            border-color: var(--cai-border);
         }
 
         /* Chat Area */
@@ -191,57 +191,59 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: var(--cai-chat-bg);
+            background: var(--cai-bg);
             height: 100%;
             width: 100%;
         }
 
         #canvas-ai-widget-root .cai-chat-header {
-            padding: 16px 20px;
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            padding: 12px 16px;
+            background: var(--cai-primary);
             color: white;
             display: flex;
             align-items: center;
             justify-content: space-between;
             z-index: 2;
+            border-bottom: 1px solid var(--cai-border);
         }
 
         #canvas-ai-widget-root .cai-menu-btn {
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             padding: 4px;
-            margin-right: 12px;
+            margin-right: 10px;
             display: flex;
         }
 
         #canvas-ai-widget-root .cai-chat-header-text h2 {
-            font-size: 16px;
+            font-size: 14px;
             margin: 0;
             color: white;
+            font-weight: 600;
         }
 
         #canvas-ai-widget-root .cai-chat-header-subtitle {
             font-size: 11px;
-            opacity: 0.8;
+            opacity: 0.85;
             color: rgba(255, 255, 255, 0.9);
         }
 
         #canvas-ai-widget-root .cai-chat-box {
             flex: 1;
-            padding: 16px;
-            background: linear-gradient(180deg, var(--cai-chat-box-bg-start) 0%, var(--cai-chat-box-bg-end) 100%);
+            padding: 12px;
+            background: var(--cai-bg);
             overflow-y: auto;
-            color: var(--cai-text-primary);
+            color: var(--cai-text);
         }
 
         #canvas-ai-widget-root .cai-message {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             display: flex;
         }
 
         #canvas-ai-widget-root .cai-message-content {
-            padding: 12px 16px;
-            border-radius: 12px;
+            padding: 10px 14px;
+            border-radius: 4px;
             font-size: 13px;
             line-height: 1.5;
         }
@@ -251,20 +253,20 @@
         }
 
         #canvas-ai-widget-root .cai-message.user .cai-message-content {
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            background: var(--cai-primary);
             color: white;
         }
 
         #canvas-ai-widget-root .cai-message.assistant .cai-message-content {
-            background: var(--cai-message-assistant-bg);
-            color: var(--cai-text-primary);
-            border: 1px solid var(--cai-message-assistant-border);
+            background: var(--cai-message-bg);
+            color: var(--cai-text);
+            border: 1px solid var(--cai-border);
         }
 
         #canvas-ai-widget-root .cai-input-area {
-            padding: 16px;
-            background: var(--cai-chat-bg);
-            border-top: 1px solid var(--cai-input-border);
+            padding: 12px;
+            background: var(--cai-bg);
+            border-top: 1px solid var(--cai-border);
             display: flex;
             gap: 8px;
         }
@@ -275,23 +277,29 @@
 
         #canvas-ai-widget-root .cai-input-area textarea {
             width: 100%;
-            padding: 12px 16px;
+            padding: 10px 12px;
             font-size: 13px;
-            border: 1px solid var(--cai-input-border);
-            border-radius: 20px;
+            border: 1px solid var(--cai-border);
+            border-radius: 4px;
             background: var(--cai-input-bg);
-            color: var(--cai-text-primary);
+            color: var(--cai-text);
             resize: none;
             max-height: 120px;
             font-family: inherit;
         }
 
         #canvas-ai-widget-root .cai-input-area button.cai-send-btn {
-            padding: 0 20px;
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-            color: white;
-            border-radius: 20px;
-            font-weight: 600;
+            padding: 0 16px;
+            background: var(--ic-brand-button--primary-bgd, var(--cai-primary));
+            color: var(--ic-brand-button--primary-text, white);
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 13px;
+            border: 1px solid transparent;
+        }
+
+        #canvas-ai-widget-root .cai-input-area button.cai-send-btn:hover {
+            background: var(--ic-brand-button--primary-bgd-darkened-5, var(--cai-primary-hover));
         }
 
         /* Empty State */
@@ -302,46 +310,48 @@
             justify-content: center;
             height: 100%;
             text-align: center;
-            padding: 20px;
+            padding: 16px;
         }
 
         #canvas-ai-widget-root .cai-empty-icon {
-            font-size: 40px;
-            margin-bottom: 10px;
+            font-size: 32px;
+            margin-bottom: 8px;
         }
 
         #canvas-ai-widget-root .cai-empty-title {
             font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--cai-text-primary);
+            margin-bottom: 6px;
+            color: var(--cai-text);
+            font-size: 14px;
         }
 
         #canvas-ai-widget-root .cai-empty-sub {
-            color: var(--cai-text-secondary);
-            margin-bottom: 20px;
+            color: var(--cai-text-light);
+            margin-bottom: 16px;
             font-size: 13px;
         }
 
         #canvas-ai-widget-root .cai-quick-actions {
             display: grid;
             width: 100%;
-            max-width: 260px;
-            gap: 8px;
+            max-width: 240px;
+            gap: 6px;
         }
 
         #canvas-ai-widget-root .cai-quick-action-btn {
-            padding: 12px;
+            padding: 10px 12px;
             font-size: 13px;
-            background: var(--cai-chat-bg);
-            border: 1px solid var(--cai-input-border);
-            border-radius: 8px;
-            color: var(--cai-text-primary);
+            background: transparent;
+            border: 1px solid var(--cai-border);
+            border-radius: 4px;
+            color: var(--cai-text);
             text-align: left;
+            font-weight: 400;
         }
 
         #canvas-ai-widget-root .cai-quick-action-btn:hover {
-            border-color: #2563eb;
-            background: rgba(37, 99, 235, 0.05);
+            border-color: var(--cai-primary);
+            background: var(--cai-input-bg);
         }
 
         /* Thinking animation */
@@ -418,7 +428,11 @@
             </div>
             <div class="cai-new-chat-section">
                 <button class="cai-new-chat-btn" onclick="window.CanvasAI.startNewChat()">
-                    <span>✨</span> New Chat
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    New Chat
                 </button>
             </div>
             <div class="cai-conversations-list" id="caiConversationsList"></div>
@@ -431,14 +445,20 @@
         <div class="cai-chat-container">
             <div class="cai-chat-header">
                 <div class="cai-chat-header-text" style="display: flex; align-items: center;">
-                    <button class="cai-menu-btn" onclick="window.CanvasAI.toggleSidebar()">☰</button>
+                    <button class="cai-menu-btn" onclick="window.CanvasAI.toggleSidebar()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
                     <div>
                         <h2>AI Assistant</h2>
                         <div class="cai-chat-header-subtitle">Canvas LMS Helper</div>
                     </div>
                 </div>
                 <div
-                    style="font-size: 10px; padding: 4px 8px; background: rgba(255,255,255,0.2); border-radius: 10px; color: white;">
+                    style="font-size: 10px; padding: 3px 6px; background: rgba(255,255,255,0.2); border-radius: 3px; color: white;">
                     <span>Online</span>
                 </div>
             </div>
@@ -452,7 +472,10 @@
                     <textarea id="caiUserInput" placeholder="Ask me anything..." rows="1"></textarea>
                 </div>
                 <button id="caiSendBtn" class="cai-send-btn" onclick="window.CanvasAI.sendMessage()">
-                    <span>🚀</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
                 </button>
             </div>
         </div>
@@ -668,20 +691,52 @@
             function renderEmptyState() {
                 const box = document.getElementById('caiChatBox');
                 let quickActionsHtml = `
-                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('List my courses')">📚 List my courses</button>
-                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Show my assignments')">📝 My assignments</button>
-                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Help me get started')">❓ Get help</button>
+                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('List my courses')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:6px">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    List my courses
+                </button>
+                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Show my assignments')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:6px">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    My assignments
+                </button>
+                <button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Help me get started')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:6px">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Get help
+                </button>
             `;
 
                 if (state.userRole === 'teacher' || state.userRole === 'admin') {
-                    quickActionsHtml += `<button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Create a new course')">➕ Create course</button>`;
+                    quickActionsHtml += `<button class="cai-quick-action-btn" onclick="window.CanvasAI.quickAction('Create a new course')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:6px">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Create course
+                    </button>`;
                 }
 
                 let warningHtml = '';
 
                 box.innerHTML = `
                 <div class="cai-empty-state">
-                    <div class="cai-empty-icon">👋</div>
+                    <div class="cai-empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
                     <div class="cai-empty-title">Hi, ${state.username}</div>
                     <div class="cai-empty-sub">How can I help you with Canvas today?</div>
                     ${warningHtml}
