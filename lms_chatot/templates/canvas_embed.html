@@ -2,20 +2,20 @@
     <style>
         /* Widget Root & Scoped Variables */
         #canvas-ai-widget-root {
-            --cai-bg-gradient-start: #667eea;
-            --cai-bg-gradient-end: #764ba2;
-            --cai-sidebar-gradient-start: #1e3a8a;
-            --cai-sidebar-gradient-end: #1e40af;
+            --cai-bg-gradient-start: var(--ic-brand-primary, #667eea);
+            --cai-bg-gradient-end: var(--ic-brand-primary-darkened-10, #764ba2);
+            --cai-sidebar-gradient-start: var(--ic-brand-primary, #1e3a8a);
+            --cai-sidebar-gradient-end: var(--ic-brand-primary-darkened-5, #1e40af);
             --cai-sidebar-border: rgba(255, 255, 255, 0.1);
-            --cai-chat-bg: #ffffff;
-            --cai-chat-box-bg-start: #f8fafc;
-            --cai-chat-box-bg-end: #f1f5f9;
-            --cai-message-assistant-bg: #ffffff;
-            --cai-message-assistant-border: #e5e7eb;
-            --cai-text-primary: #1f2937;
-            --cai-text-secondary: #6b7280;
-            --cai-input-bg: #f9fafb;
-            --cai-input-border: #e5e7eb;
+            --cai-chat-bg: var(--ic-brand-global-nav-bgd, #ffffff);
+            --cai-chat-box-bg-start: var(--ic-bg-light-primary, #f8fafc);
+            --cai-chat-box-bg-end: var(--ic-bg-light-secondary, #f1f5f9);
+            --cai-message-assistant-bg: var(--ic-bg-light-primary, #ffffff);
+            --cai-message-assistant-border: var(--ic-border-light, #e5e7eb);
+            --cai-text-primary: var(--ic-brand-font-color-dark, #1f2937);
+            --cai-text-secondary: var(--ic-hint-text, #6b7280);
+            --cai-input-bg: var(--ic-bg-light-primary, #f9fafb);
+            --cai-input-border: var(--ic-border-light, #e5e7eb);
             --cai-new-chat-accent: #10b981;
 
             position: fixed;
@@ -29,20 +29,20 @@
         }
 
         #canvas-ai-widget-root[data-theme="dark"] {
-            --cai-bg-gradient-start: #1e293b;
-            --cai-bg-gradient-end: #0f172a;
-            --cai-sidebar-gradient-start: #0f172a;
-            --cai-sidebar-gradient-end: #1e293b;
+            --cai-bg-gradient-start: var(--ic-brand-primary, #1e293b);
+            --cai-bg-gradient-end: var(--ic-brand-primary-darkened-10, #0f172a);
+            --cai-sidebar-gradient-start: var(--ic-brand-global-nav-bgd, #0f172a);
+            --cai-sidebar-gradient-end: var(--ic-brand-global-nav-menu-item__background, #1e293b);
             --cai-sidebar-border: rgba(255, 255, 255, 0.05);
-            --cai-chat-bg: #1e293b;
-            --cai-chat-box-bg-start: #0f172a;
-            --cai-chat-box-bg-end: #1e293b;
-            --cai-message-assistant-bg: #334155;
-            --cai-message-assistant-border: #475569;
-            --cai-text-primary: #f1f5f9;
-            --cai-text-secondary: #94a3b8;
-            --cai-input-bg: #334155;
-            --cai-input-border: #475569;
+            --cai-chat-bg: var(--ic-brand-global-nav-bgd, #1e293b);
+            --cai-chat-box-bg-start: var(--ic-bg-dark, #0f172a);
+            --cai-chat-box-bg-end: var(--ic-bg-dark-secondary, #1e293b);
+            --cai-message-assistant-bg: var(--ic-bg-dark-secondary, #334155);
+            --cai-message-assistant-border: var(--ic-border-dark, #475569);
+            --cai-text-primary: var(--ic-brand-font-color-dark-lightened-15, #f1f5f9);
+            --cai-text-secondary: var(--ic-hint-text, #94a3b8);
+            --cai-input-bg: var(--ic-bg-dark-secondary, #334155);
+            --cai-input-border: var(--ic-border-dark, #475569);
             --cai-new-chat-accent: #10b981;
         }
 
@@ -273,7 +273,7 @@
             flex: 1;
         }
 
-        #canvas-ai-widget-root .cai-input-area input {
+        #canvas-ai-widget-root .cai-input-area textarea {
             width: 100%;
             padding: 12px 16px;
             font-size: 13px;
@@ -281,6 +281,9 @@
             border-radius: 20px;
             background: var(--cai-input-bg);
             color: var(--cai-text-primary);
+            resize: none;
+            max-height: 120px;
+            font-family: inherit;
         }
 
         #canvas-ai-widget-root .cai-input-area button.cai-send-btn {
@@ -446,7 +449,7 @@
 
             <div class="cai-input-area">
                 <div class="cai-input-wrapper">
-                    <input type="text" id="caiUserInput" placeholder="Ask me anything..." />
+                    <textarea id="caiUserInput" placeholder="Ask me anything..." rows="1"></textarea>
                 </div>
                 <button id="caiSendBtn" class="cai-send-btn" onclick="window.CanvasAI.sendMessage()">
                     <span>🚀</span>
@@ -512,6 +515,23 @@
                     
                     localStorage.setItem('canvas_ai_user_id', state.canvasUserId);
                     localStorage.setItem('canvas_ai_username', state.username);
+                    
+                    const root = document.getElementById('canvas-ai-widget-root');
+                    
+                    if (event.data.theme) {
+                        root.setAttribute('data-theme', event.data.theme);
+                        localStorage.setItem('canvas_ai_theme', event.data.theme);
+                        updateThemeIcon(event.data.theme);
+                    }
+                    
+                    if (event.data.theme_colors) {
+                        const colors = event.data.theme_colors;
+                        if (colors.primary) root.style.setProperty('--ic-brand-primary', colors.primary);
+                        if (colors.secondary) root.style.setProperty('--ic-brand-button--primary-bgd', colors.secondary);
+                        if (colors.font) root.style.setProperty('--ic-brand-font-color-dark', colors.font);
+                        if (colors.link) root.style.setProperty('--ic-link-color', colors.link);
+                        if (colors.background) root.style.setProperty('--ic-brand-global-nav-bgd', colors.background);
+                    }
                     
                     console.log('Received Canvas context:', state);
                     if (state.messages.length === 0) renderEmptyState();
@@ -625,7 +645,19 @@
                 const box = document.getElementById('caiChatBox');
                 const div = document.createElement('div');
                 div.className = `cai-message ${role}`;
-                div.innerHTML = `<div class="cai-message-content">${content}</div>`;
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'cai-message-content';
+                
+                // Convert markdown-like formatting
+                let html = content
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>');
+                
+                contentDiv.innerHTML = html;
+                div.appendChild(contentDiv);
                 box.appendChild(div);
             }
 
@@ -668,6 +700,7 @@
                 appendMessage('user', txt);
                 state.messages.push({ role: 'user', content: txt });
                 input.value = '';
+                input.style.height = 'auto';
 
                 const box = document.getElementById('caiChatBox');
                 const thinking = document.createElement('div');
@@ -716,8 +749,17 @@
             initContext();
             if (state.messages.length === 0) renderEmptyState();
 
-            document.getElementById('caiUserInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
+            const input = document.getElementById('caiUserInput');
+            input.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+            
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
             });
 
         })();
