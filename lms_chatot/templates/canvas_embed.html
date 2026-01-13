@@ -546,6 +546,12 @@
                 document.getElementById('canvas-ai-widget-root').setAttribute('data-theme', savedTheme);
                 updateThemeIcon(savedTheme);
 
+                // Restore last conversation
+                const lastConversationId = localStorage.getItem('canvas_ai_last_conversation');
+                if (lastConversationId) {
+                    loadConversation(lastConversationId);
+                }
+
                 console.log('Canvas AI Widget Initialized', state);
             }
 
@@ -606,6 +612,7 @@
                 startNewChat: function () {
                     state.currentConversationId = null;
                     state.messages = [];
+                    localStorage.removeItem('canvas_ai_last_conversation');
                     renderEmptyState();
                     window.CanvasAI.toggleSidebar();
                     createNewConversation();
@@ -665,6 +672,7 @@
 
             async function loadConversation(id) {
                 state.currentConversationId = id;
+                localStorage.setItem('canvas_ai_last_conversation', id);
                 window.CanvasAI.toggleSidebar();
 
                 try {
@@ -805,7 +813,10 @@
                     thinking.remove();
 
                     if (data.session_id) state.sessionId = data.session_id;
-                    if (data.conversation_id) state.currentConversationId = data.conversation_id;
+                    if (data.conversation_id) {
+                        state.currentConversationId = data.conversation_id;
+                        localStorage.setItem('canvas_ai_last_conversation', data.conversation_id);
+                    }
 
                     appendMessage('assistant', data.content);
                     state.messages.push({ role: 'assistant', content: data.content });

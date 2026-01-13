@@ -49,6 +49,18 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         transition: all 0.2s;
         border: 1px solid var(--ic-brand-primary, #0374B5);
+        position: relative;
+      }
+      #ai-toggle.has-notification::after {
+        content: '';
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 10px;
+        height: 10px;
+        background: var(--ic-brand-primary, #0374B5);
+        border-radius: 50%;
+        border: 2px solid white;
       }
       #ai-toggle:hover {
         background: var(--ic-brand-button--primary-bgd-darkened-5, var(--ic-brand-primary-darkened-5, #0374B5));
@@ -127,6 +139,11 @@
       const isOpen = frame.style.display === "block";
       frame.style.display = isOpen ? "none" : "block";
       
+      // Remove notification badge when opening
+      if (!isOpen) {
+        toggle.classList.remove('has-notification');
+      }
+      
       // Close Canvas course menu if open
       const courseMenu = document.querySelector('#course_show_secondary');
       if (!isOpen && courseMenu && courseMenu.style.display !== 'none') {
@@ -135,6 +152,27 @@
       }
       
       if (!isOpen) setTimeout(sendCanvasContext, 100);
+    };
+
+    // Poll for new messages when widget is closed
+    let lastMessageCount = 0;
+    setInterval(() => {
+      if (frame.style.display !== "block") {
+        frame.contentWindow.postMessage({ action: 'checkNewMessages' }, '*');
+      }
+    }, 5000);
+
+    // Listen for new message notifications from iframe
+    window.addEventListener('message', (event) => {
+      if (event.data.hasNewMessages && frame.style.display !== "block") {
+        toggle.classList.add('has-notification');
+      }
+    });
+    // Expose method to show notification
+    window.showAINotification = () => {
+      if (frame.style.display !== "block") {
+        toggle.classList.add('has-notification');
+      }
     };
   });
 })();
