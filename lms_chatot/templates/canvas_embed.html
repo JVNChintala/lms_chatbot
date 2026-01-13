@@ -821,6 +821,9 @@
                     appendMessage('assistant', data.content);
                     state.messages.push({ role: 'assistant', content: data.content });
 
+                    // Notify parent of new message immediately
+                    notifyParent();
+
                     if (state.messages.length <= 2) loadConversations();
 
                 } catch (e) {
@@ -832,8 +835,35 @@
                 input.focus();
             }
 
+            // Notify parent window of new messages
+            function notifyParent() {
+                if (window.parent !== window) {
+                    window.parent.postMessage({ hasNewMessages: true }, '*');
+                }
+            }
+
+            // Listen for check message requests from parent
+            window.addEventListener('message', (event) => {
+                if (event.data.action === 'checkNewMessages') {
+                    const lastCount = parseInt(localStorage.getItem('canvas_ai_last_message_count') || '0');
+                    if (state.messages.length > lastCount) {
+                        notifyParent();
+                    }
+                } else if (event.data.action === 'updateMessageCount') {
+                    localStorage.setItem('canvas_ai_last_message_count', state.messages.length.toString());
+                }
+            });
+
+            // Update message count when widget is visible
+            window.addEventListener('focus', () => {
+                localStorage.setItem('canvas_ai_last_message_count', state.messages.length.toString());
+            });
+
             initContext();
             if (state.messages.length === 0) renderEmptyState();
+            
+            // Initialize message count
+            localStorage.setItem('canvas_ai_last_message_count', state.messages.length.toString());
 
             const input = document.getElementById('caiUserInput');
             input.addEventListener('input', function() {
