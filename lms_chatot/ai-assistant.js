@@ -59,7 +59,7 @@
         top: 50px;
         right: 0;
         width: 400px;
-        height: calc(100vh - 50px);
+        height: calc(100vh - 120px);
         border: none;
         border-left: 1px solid var(--ic-border-light, #C7CDD1);
         display: none;
