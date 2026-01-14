@@ -73,12 +73,12 @@ class ConversationsDB:
         conn.close()
         return conversations
     
-    def get_messages(self, conversation_id: int) -> List[Dict]:
+    def get_messages(self, conversation_id: int, canvas_user_id: int) -> List[Dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
-            (conversation_id,)
+            "SELECT role, content, created_at FROM messages WHERE conversation_id = ? AND conversation_id IN (SELECT id FROM conversations WHERE canvas_user_id = ?) ORDER BY created_at ASC",
+            (conversation_id, canvas_user_id)
         )
         messages = [
             {"role": row[0], "content": row[1], "created_at": row[2]}
@@ -87,21 +87,21 @@ class ConversationsDB:
         conn.close()
         return messages
     
-    def delete_conversation(self, conversation_id: int):
+    def delete_conversation(self, conversation_id: int, canvas_user_id: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
-        cursor.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+        cursor.execute("DELETE FROM messages WHERE conversation_id = ? AND conversation_id IN (SELECT id FROM conversations WHERE canvas_user_id = ?)", (conversation_id, canvas_user_id))
+        cursor.execute("DELETE FROM conversations WHERE id = ? AND canvas_user_id = ?", (conversation_id, canvas_user_id))
         conn.commit()
         conn.close()
     
-    def update_conversation_title(self, conversation_id: int, title: str):
+    def update_conversation_title(self, conversation_id: int, title: str, canvas_user_id: int):
         """Update conversation title"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (title, conversation_id)
+            "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND canvas_user_id = ?",
+            (title, conversation_id, canvas_user_id)
         )
         conn.commit()
         conn.close()

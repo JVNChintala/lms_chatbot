@@ -263,20 +263,20 @@ async def create_conversation(payload: Dict[str, Any]):
 
 
 @app.get("/conversations/{conversation_id}/messages")
-async def get_messages(conversation_id: int):
-    return {"messages": conversations_db.get_messages(conversation_id)}
+async def get_messages(conversation_id: int, canvas_user_id: int):
+    return {"messages": conversations_db.get_messages(conversation_id, canvas_user_id)}
 
 
 @app.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: int):
-    conversations_db.delete_conversation(conversation_id)
+async def delete_conversation(conversation_id: int, canvas_user_id: int):
+    conversations_db.delete_conversation(conversation_id, canvas_user_id)
     return {"success": True}
 
 
 @app.put("/conversations/{conversation_id}/title")
-async def update_title(conversation_id: int, payload: Dict[str, Any]):
+async def update_title(conversation_id: int, canvas_user_id: int, payload: Dict[str, Any]):
     conversations_db.update_conversation_title(
-        conversation_id, payload.get("title", "Untitled")
+        conversation_id, payload.get("title", "Untitled"), canvas_user_id
     )
     return {"success": True}
 
