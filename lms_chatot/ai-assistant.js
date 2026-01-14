@@ -33,9 +33,9 @@
     const style = document.createElement("style");
     style.innerHTML = `
       #ai-toggle {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
+        position: fixed !important;
+        bottom: 20px !important;
+        right: 20px !important;
         width: 48px;
         height: 48px;
         background: var(--ic-brand-button--primary-bgd, var(--ic-brand-primary, #0374B5));
@@ -139,9 +139,13 @@
       const isOpen = frame.style.display === "block";
       frame.style.display = isOpen ? "none" : "block";
       
-      // Remove notification badge when opening
+      // Remove notification badge and update message count when opening
       if (!isOpen) {
         toggle.classList.remove('has-notification');
+        // Tell iframe to update its message count
+        setTimeout(() => {
+          frame.contentWindow.postMessage({ action: 'updateMessageCount' }, '*');
+        }, 500);
       }
       
       // Close Canvas course menu if open
@@ -155,12 +159,11 @@
     };
 
     // Poll for new messages when widget is closed
-    let lastMessageCount = 0;
     setInterval(() => {
-      if (frame.style.display !== "block") {
+      if (frame.style.display !== "block" && frame.contentWindow) {
         frame.contentWindow.postMessage({ action: 'checkNewMessages' }, '*');
       }
-    }, 5000);
+    }, 10000);
 
     // Listen for new message notifications from iframe
     window.addEventListener('message', (event) => {

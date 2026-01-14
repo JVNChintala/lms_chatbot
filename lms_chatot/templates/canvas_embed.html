@@ -546,8 +546,8 @@
                 document.getElementById('canvas-ai-widget-root').setAttribute('data-theme', savedTheme);
                 updateThemeIcon(savedTheme);
 
-                // Restore last conversation
-                const lastConversationId = localStorage.getItem('canvas_ai_last_conversation');
+                // Restore last conversation for this specific user
+                const lastConversationId = localStorage.getItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
                 if (lastConversationId) {
                     loadConversation(lastConversationId);
                 }
@@ -612,7 +612,7 @@
                 startNewChat: function () {
                     state.currentConversationId = null;
                     state.messages = [];
-                    localStorage.removeItem('canvas_ai_last_conversation');
+                    localStorage.removeItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
                     renderEmptyState();
                     window.CanvasAI.toggleSidebar();
                     createNewConversation();
@@ -672,7 +672,7 @@
 
             async function loadConversation(id) {
                 state.currentConversationId = id;
-                localStorage.setItem('canvas_ai_last_conversation', id);
+                localStorage.setItem(`canvas_ai_last_conversation_${state.canvasUserId}`, id);
                 window.CanvasAI.toggleSidebar();
 
                 try {
@@ -815,7 +815,7 @@
                     if (data.session_id) state.sessionId = data.session_id;
                     if (data.conversation_id) {
                         state.currentConversationId = data.conversation_id;
-                        localStorage.setItem('canvas_ai_last_conversation', data.conversation_id);
+                        localStorage.setItem(`canvas_ai_last_conversation_${state.canvasUserId}`, data.conversation_id);
                     }
 
                     appendMessage('assistant', data.content);
@@ -845,25 +845,25 @@
             // Listen for check message requests from parent
             window.addEventListener('message', (event) => {
                 if (event.data.action === 'checkNewMessages') {
-                    const lastCount = parseInt(localStorage.getItem('canvas_ai_last_message_count') || '0');
+                    const lastCount = parseInt(localStorage.getItem(`canvas_ai_last_message_count_${state.canvasUserId}`) || '0');
                     if (state.messages.length > lastCount) {
                         notifyParent();
                     }
                 } else if (event.data.action === 'updateMessageCount') {
-                    localStorage.setItem('canvas_ai_last_message_count', state.messages.length.toString());
+                    localStorage.setItem(`canvas_ai_last_message_count_${state.canvasUserId}`, state.messages.length.toString());
                 }
             });
 
             // Update message count when widget is visible
             window.addEventListener('focus', () => {
-                localStorage.setItem('canvas_ai_last_message_count', state.messages.length.toString());
+                localStorage.setItem(`canvas_ai_last_message_count_${state.canvasUserId}`, state.messages.length.toString());
             });
 
             initContext();
             if (state.messages.length === 0) renderEmptyState();
             
             // Initialize message count
-            localStorage.setItem('canvas_ai_last_message_count', state.messages.length.toString());
+            localStorage.setItem(`canvas_ai_last_message_count_${state.canvasUserId}`, state.messages.length.toString());
 
             const input = document.getElementById('caiUserInput');
             input.addEventListener('input', function() {
