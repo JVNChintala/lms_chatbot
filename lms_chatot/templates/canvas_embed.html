@@ -676,7 +676,7 @@
                 window.CanvasAI.toggleSidebar();
 
                 try {
-                    const res = await fetch(`${CONFIG.API_BASE}/conversations/${id}/messages`);
+                    const res = await fetch(`${CONFIG.API_BASE}/conversations/${id}/messages?canvas_user_id=${state.canvasUserId}`);
                     const data = await res.json();
                     state.messages = data.messages || [];
                     renderMessages();
