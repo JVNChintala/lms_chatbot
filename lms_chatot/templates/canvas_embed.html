@@ -558,9 +558,19 @@
             // Listen for Canvas context from parent
             window.addEventListener('message', (event) => {
                 if (event.data.source === 'canvas') {
+                    const previousUserId = state.canvasUserId;
+                    
                     state.canvasUserId = event.data.canvas_user_id;
                     state.userRole = event.data.user_role || 'student';
                     state.username = event.data.username || 'Canvas User';
+                    
+                    // User changed - clear conversation
+                    if (previousUserId && previousUserId !== state.canvasUserId) {
+                        state.messages = [];
+                        state.currentConversationId = null;
+                        state.sessionId = null;
+                        renderEmptyState();
+                    }
                     
                     localStorage.setItem('canvas_ai_user_id', state.canvasUserId);
                     localStorage.setItem('canvas_ai_username', state.username);
