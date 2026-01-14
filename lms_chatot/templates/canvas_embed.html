@@ -546,11 +546,7 @@
                 document.getElementById('canvas-ai-widget-root').setAttribute('data-theme', savedTheme);
                 updateThemeIcon(savedTheme);
 
-                // Restore last conversation for this specific user
-                const lastConversationId = localStorage.getItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
-                if (lastConversationId) {
-                    loadConversation(lastConversationId);
-                }
+                // Don't load conversation on init - wait for Canvas context
 
                 console.log('Canvas AI Widget Initialized', state);
             }
@@ -569,7 +565,6 @@
                         state.messages = [];
                         state.currentConversationId = null;
                         state.sessionId = null;
-                        renderEmptyState();
                     }
                     
                     localStorage.setItem('canvas_ai_user_id', state.canvasUserId);
@@ -592,8 +587,17 @@
                         if (colors.background) root.style.setProperty('--ic-brand-global-nav-bgd', colors.background);
                     }
                     
+                    // Load last conversation for this user
+                    if (!previousUserId || previousUserId !== state.canvasUserId) {
+                        const lastConversationId = localStorage.getItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
+                        if (lastConversationId) {
+                            loadConversation(lastConversationId);
+                        } else {
+                            renderEmptyState();
+                        }
+                    }
+                    
                     console.log('Received Canvas context:', state);
-                    if (state.messages.length === 0) renderEmptyState();
                 }
             });
 
