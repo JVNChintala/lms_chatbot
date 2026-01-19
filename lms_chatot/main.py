@@ -66,6 +66,7 @@ class InferenceRequest(BaseModel):
     pending_tool: Optional[str] = None
     pending_tool_def: Optional[Dict[str, Any]] = None
     state: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None
 
 
 class LoginRequest(BaseModel):
@@ -110,6 +111,12 @@ async def inference(req: InferenceRequest):
             user_info = {
                 "canvas_user_id": canvas_user_id,
                 "role": user_role,
+                "course_id": req.context.get("course_id") if req.context else None,
+                "course_name": req.context.get("course_name") if req.context else None,
+                "assignment_id": req.context.get("assignment_id") if req.context else None,
+                "quiz_id": req.context.get("quiz_id") if req.context else None,
+                "module_id": req.context.get("module_id") if req.context else None,
+                "discussion_id": req.context.get("discussion_id") if req.context else None,
             }
 
             # Conversation tracking

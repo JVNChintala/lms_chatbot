@@ -522,7 +522,8 @@
                 currentConversationId: null,
                 conversations: [],
                 isOpen: false,
-                isSidebarOpen: false
+                isSidebarOpen: false,
+                pageContext: {}
             };
 
             // Initialize Context
@@ -559,6 +560,16 @@
                     state.canvasUserId = event.data.canvas_user_id;
                     state.userRole = event.data.user_role || 'student';
                     state.username = event.data.username || 'Canvas User';
+                    
+                    // Store page context
+                    state.pageContext = {
+                        course_id: event.data.course_id,
+                        course_name: event.data.course_name,
+                        assignment_id: event.data.assignment_id,
+                        quiz_id: event.data.quiz_id,
+                        module_id: event.data.module_id,
+                        discussion_id: event.data.discussion_id,
+                    };
                     
                     // User changed - clear conversation
                     if (previousUserId && previousUserId !== state.canvasUserId) {
@@ -815,7 +826,8 @@
                             canvas_user_id: state.canvasUserId,
                             user_role: state.userRole,
                             conversation_id: state.currentConversationId,
-                            session_id: state.sessionId
+                            session_id: state.sessionId,
+                            context: state.pageContext
                         })
                     });
 
