@@ -835,8 +835,8 @@
                     appendMessage('assistant', data.content);
                     state.messages.push({ role: 'assistant', content: data.content });
 
-                    // Notify parent of new message immediately
-                    notifyParent();
+                    // Update message count to prevent duplicate notifications
+                    localStorage.setItem(`canvas_ai_last_message_count_${state.canvasUserId}`, state.messages.length.toString());
 
                     if (state.messages.length <= 2) loadConversations();
 

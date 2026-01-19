@@ -149,8 +149,12 @@ class CanvasAgent:
                 "permission_denied": True,
             }
         
+        # Build context-aware system prompt
+        context_info = self._build_context_prompt()
+        
         system_prompt = (
             f"You are a Canvas LMS assistant for a {self.user_role or 'user'}.\n"
+            f"{context_info}"
             "You have access to Canvas API tools. ALWAYS use tools to perform Canvas operations.\n\n"
             "CRITICAL CHAINING RULES:\n"
             "1. After creating a resource (course, module, etc.), use the returned ID for subsequent operations\n"
@@ -195,6 +199,40 @@ class CanvasAgent:
             self.user_role = role
         if info:
             self.user_info = info
+
+    def _build_context_prompt(self) -> str:
+        """Build context-aware prompt based on current page"""
+        context_parts = []
+        
+        # Course context
+        if self.user_info.get("course_id"):
+            course_name = self.user_info.get("course_name", "this course")
+            context_parts.append(f"User is currently viewing course '{course_name}' (ID: {self.user_info['course_id']}).")
+            context_parts.append("When user says 'this course' or uses relative terms, use this course_id.")
+        
+        # Assignment context
+        if self.user_info.get("assignment_id"):
+            context_parts.append(f"User is viewing assignment ID {self.user_info['assignment_id']}.")
+            context_parts.append("When user refers to 'this assignment', use this assignment_id.")
+        
+        # Quiz context
+        if self.user_info.get("quiz_id"):
+            context_parts.append(f"User is viewing quiz ID {self.user_info['quiz_id']}.")
+            context_parts.append("When user refers to 'this quiz', use this quiz_id.")
+        
+        # Module context
+        if self.user_info.get("module_id"):
+            context_parts.append(f"User is viewing module ID {self.user_info['module_id']}.")
+            context_parts.append("When user refers to 'this module', use this module_id.")
+        
+        # Discussion context
+        if self.user_info.get("discussion_id"):
+            context_parts.append(f"User is viewing discussion ID {self.user_info['discussion_id']}.")
+            context_parts.append("When user refers to 'this discussion', use this discussion_id.")
+        
+        if context_parts:
+            return "CURRENT CONTEXT:\n" + "\n".join(context_parts) + "\n\n"
+        return ""
 
     # ------------------------------------------------------------------
     # Tool Execution
