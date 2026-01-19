@@ -755,7 +755,9 @@
             async function loadConversation(id) {
                 state.currentConversationId = id;
                 localStorage.setItem(`canvas_ai_last_conversation_${state.canvasUserId}`, id);
-                window.CanvasAI.toggleSidebar();
+                if (state.isSidebarOpen) {
+                    window.CanvasAI.toggleSidebar();
+                }
 
                 try {
                     const res = await fetch(`${CONFIG.API_BASE}/conversations/${id}/messages?canvas_user_id=${state.canvasUserId}`);

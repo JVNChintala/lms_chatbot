@@ -13,6 +13,13 @@
     // Canvas globals
     if (!window.ENV || !ENV.current_user_id) return;
 
+    // Hide widget on student quiz pages
+    const roles = ENV.current_user_roles || [];
+    const isStudent = !roles.includes("teacher") && !roles.includes("instructor") && !roles.includes("admin");
+    const isQuizPage = window.location.pathname.includes('/quizzes/') && window.location.pathname.includes('/take');
+    
+    if (isStudent && isQuizPage) return;
+
     const container = document.createElement("div");
     container.id = "ai-assistant-container";
     container.innerHTML = `
@@ -87,6 +94,12 @@
     const frame = document.getElementById("ai-frame");
     const toggle = document.getElementById("ai-toggle");
     
+    // Restore widget open state
+    const wasOpen = localStorage.getItem(`canvas_ai_widget_open_${ENV.current_user_id}`) === 'true';
+    if (wasOpen) {
+      frame.style.display = "block";
+    }
+    
     function sendCanvasContext() {
       let userRole = "student";
       const roles = ENV.current_user_roles || [];
@@ -138,6 +151,9 @@
     toggle.onclick = () => {
       const isOpen = frame.style.display === "block";
       frame.style.display = isOpen ? "none" : "block";
+      
+      // Save widget state
+      localStorage.setItem(`canvas_ai_widget_open_${ENV.current_user_id}`, (!isOpen).toString());
       
       // Remove notification badge and update message count when opening
       if (!isOpen) {
