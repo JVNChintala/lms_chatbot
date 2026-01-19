@@ -117,13 +117,16 @@ async def inference(req: InferenceRequest):
                 "quiz_id": req.context.get("quiz_id") if req.context else None,
                 "module_id": req.context.get("module_id") if req.context else None,
                 "discussion_id": req.context.get("discussion_id") if req.context else None,
+                "current_page": req.context.get("current_page") if req.context else None,
             }
 
             # Conversation tracking
             conv_id = req.conversation_id
             if canvas_user_id and not conv_id:
+                # Use first message as title, truncate to 50 chars
+                title = req.messages[-1]["content"][:50]
                 conv_id = conversations_db.create_conversation(
-                    canvas_user_id, "New Chat"
+                    canvas_user_id, title
                 )
             
             if conv_id:
