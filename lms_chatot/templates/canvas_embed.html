@@ -626,13 +626,11 @@
                     }
                     
                     // Load last conversation for this user
-                    if (!previousUserId || previousUserId !== state.canvasUserId) {
-                        const lastConversationId = localStorage.getItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
-                        if (lastConversationId) {
-                            loadConversation(lastConversationId);
-                        } else {
-                            renderEmptyState();
-                        }
+                    const lastConversationId = localStorage.getItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
+                    if (lastConversationId && !state.currentConversationId) {
+                        loadConversation(lastConversationId);
+                    } else if (!state.currentConversationId) {
+                        renderEmptyState();
                     }
                     
                     console.log('Received Canvas context:', state);
