@@ -725,11 +725,15 @@
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'cai-message-content';
                 
-                // Convert markdown-like formatting
+                // Convert markdown formatting
                 let html = content
+                    .replace(/### (.*?)$/gm, '<h3 style="font-size:16px;font-weight:600;margin:8px 0">$1</h3>')
+                    .replace(/## (.*?)$/gm, '<h2 style="font-size:18px;font-weight:600;margin:10px 0">$1</h2>')
+                    .replace(/# (.*?)$/gm, '<h1 style="font-size:20px;font-weight:600;margin:12px 0">$1</h1>')
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--cai-accent);text-decoration:underline">$1</a>')
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/`(.*?)`/g, '<code style="background:var(--cai-hover);padding:2px 4px;border-radius:3px;font-family:monospace">$1</code>')
                     .replace(/\n/g, '<br>');
                 
                 contentDiv.innerHTML = html;
