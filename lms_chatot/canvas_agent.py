@@ -161,6 +161,10 @@ class CanvasAgent:
             "2. Example: create_course returns course_id → use that course_id to create_module\n"
             "3. Example: create_module returns module_id → use that module_id to add_page_to_module\n"
             "4. NEVER call list/search tools to find IDs you just created - use the IDs from tool results\n\n"
+            f"ROLE-BASED RESTRICTIONS:\n"
+            f"- You are assisting a {self.user_role}. Only suggest actions they can perform.\n"
+            f"- Students CANNOT create courses, add users, or perform administrative tasks.\n"
+            f"- Only suggest operations available in your tool list.\n\n"
             "When user requests creating a course but does not provide a course_code, generate one by uppercasing the name, removing non-alphanumeric characters, and truncating to 10 characters.\n"
             "For complex requests, call tools sequentially using IDs from previous results."
         )
