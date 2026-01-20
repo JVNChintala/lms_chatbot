@@ -665,7 +665,6 @@
                     localStorage.removeItem(`canvas_ai_last_conversation_${state.canvasUserId}`);
                     renderEmptyState();
                     window.CanvasAI.toggleSidebar();
-                    createNewConversation();
                 },
 
                 sendMessage: sendMessage,
@@ -681,20 +680,7 @@
                 if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
             }
 
-            async function createNewConversation() {
-                if (!state.canvasUserId || isConfigInvalid()) return;
-                try {
-                    const res = await fetch(`${CONFIG.API_BASE}/conversations`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ canvas_user_id: state.canvasUserId, title: 'New Chat' })
-                    });
-                    const data = await res.json();
-                    state.currentConversationId = data.conversation_id;
-                } catch (e) {
-                    console.error('Failed to init chat', e);
-                }
-            }
+
 
             async function loadConversations() {
                 if (!state.canvasUserId || isConfigInvalid()) return;
