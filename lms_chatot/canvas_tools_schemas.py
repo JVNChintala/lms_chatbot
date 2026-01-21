@@ -919,3 +919,57 @@ class CanvasToolSchemas:
 
 
 
+
+    @staticmethod
+    def get_rubric():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_rubric",
+                "description": "Get assignment rubric and grading criteria",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "assignment_id": {"type": "integer"},
+                    },
+                    "required": ["course_id", "assignment_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def get_page_content():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_page_content",
+                "description": "Get page content for context-aware help",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "page_url": {"type": "string"},
+                    },
+                    "required": ["course_id", "page_url"],
+                },
+            },
+        }
+
+    @staticmethod
+    def get_student_analytics():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_student_analytics",
+                "description": "Get detailed student performance analytics",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "user_id": {"type": "integer"},
+                    },
+                    "required": ["course_id", "user_id"],
+                },
+            },
+        }

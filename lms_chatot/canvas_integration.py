@@ -549,3 +549,35 @@ class CanvasLMS:
             }
         
         return {"assignments": assignments}
+
+    def get_rubric(self, course_id: int, assignment_id: int) -> Dict:
+        """Get assignment rubric"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}"
+        response = requests.get(url, headers=self.headers, params={"include": ["rubric"]})
+        response.raise_for_status()
+        data = response.json()
+        return {"rubric": data.get("rubric", []), "rubric_settings": data.get("rubric_settings", {})}
+    
+    def get_page_content(self, course_id: int, page_url: str) -> Dict:
+        """Get page content"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/pages/{page_url}"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_student_analytics(self, course_id: int, user_id: int) -> Dict:
+        """Get detailed student analytics"""
+        analytics = {}
+        try:
+            submissions_url = f"{self.base_url}/api/v1/courses/{course_id}/students/submissions"
+            resp = requests.get(submissions_url, headers=self.headers, params={"student_ids": [user_id], "per_page": 100})
+            if resp.ok:
+                submissions = resp.json()
+                analytics["total_submissions"] = len(submissions)
+                analytics["graded"] = len([s for s in submissions if s.get("grade")])
+                analytics["late"] = len([s for s in submissions if s.get("late")])
+                grades = [float(s.get("score", 0)) for s in submissions if s.get("score")]
+                analytics["average_score"] = round(sum(grades) / len(grades), 2) if grades else 0
+        except:
+            pass
+        return analytics

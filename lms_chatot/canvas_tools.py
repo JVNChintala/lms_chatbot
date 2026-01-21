@@ -72,6 +72,9 @@ class CanvasTools:
             "post_discussion_reply": self._post_discussion_reply,
             "get_upcoming_assignments": self._get_upcoming_assignments,
             "get_course_progress": self._get_course_progress,
+            "get_rubric": self._get_rubric,
+            "get_page_content": self._get_page_content,
+            "get_student_analytics": self._get_student_analytics,
         }
 
     # ------------------------------------------------------------------
@@ -119,6 +122,9 @@ class CanvasTools:
             CanvasToolSchemas.post_discussion_reply(),
             CanvasToolSchemas.get_upcoming_assignments(),
             CanvasToolSchemas.get_course_progress(),
+            CanvasToolSchemas.get_rubric(),
+            CanvasToolSchemas.get_page_content(),
+            CanvasToolSchemas.get_student_analytics(),
             # CanvasToolSchemas.list_enrollments(),
             # CanvasToolSchemas.get_user_profile(),
         ]
@@ -128,11 +134,11 @@ class CanvasTools:
         ROLE_MAP = {
             "student": {
                 "list_user_courses", "get_course", "list_modules", "get_module",
-                "list_assignments", "get_assignment", "submit_assignment",
+                "list_assignments", "get_assignment", "submit_assignment", "get_rubric",
                 "list_announcements", "list_discussions", "post_discussion_reply",
-                "list_quizzes", "list_pages", "list_files",
+                "list_quizzes", "list_pages", "list_files", "get_page_content",
                 "get_grades", "get_user_profile", "get_upcoming_assignments",
-                "get_course_progress"
+                "get_course_progress", "get_student_analytics"
             },
             "teacher": {
                 "list_user_courses", "get_course", "create_course", "update_course", "publish_course", "unpublish_course",
@@ -418,3 +424,13 @@ class CanvasTools:
     def _get_course_progress(self, args: dict):
         user_id = self.canvas_user_id if self.user_role == "student" else args.get("user_id")
         return self.canvas.get_course_progress(args["course_id"], user_id)
+
+    def _get_rubric(self, args: dict):
+        return self.canvas.get_rubric(args["course_id"], args["assignment_id"])
+
+    def _get_page_content(self, args: dict):
+        return self.canvas.get_page_content(args["course_id"], args["page_url"])
+
+    def _get_student_analytics(self, args: dict):
+        user_id = self.canvas_user_id if self.user_role == "student" else args["user_id"]
+        return self.canvas.get_student_analytics(args["course_id"], user_id)
