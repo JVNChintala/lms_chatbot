@@ -69,6 +69,9 @@ class CanvasTools:
             "upload_file": self._upload_file,
             "get_grades": self._get_grades,
             "view_gradebook": self._view_gradebook,
+            "post_discussion_reply": self._post_discussion_reply,
+            "get_upcoming_assignments": self._get_upcoming_assignments,
+            "get_course_progress": self._get_course_progress,
         }
 
     # ------------------------------------------------------------------
@@ -113,6 +116,9 @@ class CanvasTools:
             CanvasToolSchemas.create_quiz_question(),
             CanvasToolSchemas.create_announcement(),
             CanvasToolSchemas.list_announcements(),
+            CanvasToolSchemas.post_discussion_reply(),
+            CanvasToolSchemas.get_upcoming_assignments(),
+            CanvasToolSchemas.get_course_progress(),
             # CanvasToolSchemas.list_enrollments(),
             # CanvasToolSchemas.get_user_profile(),
         ]
@@ -123,8 +129,10 @@ class CanvasTools:
             "student": {
                 "list_user_courses", "get_course", "list_modules", "get_module",
                 "list_assignments", "get_assignment", "submit_assignment",
-                "list_announcements", "list_discussions", "list_quizzes",
-                "list_pages", "list_files", "get_grades", "get_user_profile"
+                "list_announcements", "list_discussions", "post_discussion_reply",
+                "list_quizzes", "list_pages", "list_files",
+                "get_grades", "get_user_profile", "get_upcoming_assignments",
+                "get_course_progress"
             },
             "teacher": {
                 "list_user_courses", "get_course", "create_course", "update_course", "publish_course", "unpublish_course",
@@ -399,3 +407,14 @@ class CanvasTools:
 
     def _list_course_users(self, args: dict):
         return self.canvas.list_course_users(args["course_id"])
+
+    def _post_discussion_reply(self, args: dict):
+        return self.canvas.post_discussion_reply(args["course_id"], args["topic_id"], args["message"])
+
+    def _get_upcoming_assignments(self, args: dict):
+        user_id = self.canvas_user_id if self.canvas_user_id else None
+        return self.canvas.get_upcoming_assignments(user_id)
+
+    def _get_course_progress(self, args: dict):
+        user_id = self.canvas_user_id if self.user_role == "student" else args.get("user_id")
+        return self.canvas.get_course_progress(args["course_id"], user_id)

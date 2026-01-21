@@ -378,3 +378,116 @@ class CanvasLMS:
         response = requests.put(url, headers=self.headers, data=data)
         response.raise_for_status()
         return response.json()
+    
+    def update_assignment(self, course_id: int, assignment_id: int, updates: Dict) -> Dict:
+        """Update assignment"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}"
+        data = {f"assignment[{k}]": v for k, v in updates.items()}
+        response = requests.put(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def delete_assignment(self, course_id: int, assignment_id: int) -> Dict:
+        """Delete assignment"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/assignments/{assignment_id}"
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_module(self, course_id: int, module_id: int) -> Dict:
+        """Get module details"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/modules/{module_id}"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def update_module(self, course_id: int, module_id: int, updates: Dict) -> Dict:
+        """Update module"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/modules/{module_id}"
+        data = {f"module[{k}]": v for k, v in updates.items()}
+        response = requests.put(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def delete_module(self, course_id: int, module_id: int) -> Dict:
+        """Delete module"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/modules/{module_id}"
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def unenroll_user(self, course_id: int, enrollment_id: int) -> Dict:
+        """Unenroll user from course"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/enrollments/{enrollment_id}"
+        data = {"task": "delete"}
+        response = requests.delete(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def list_announcements(self, course_id: int) -> List[Dict]:
+        """List course announcements"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/discussion_topics"
+        response = requests.get(url, headers=self.headers, params={"only_announcements": True, "per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def list_discussions(self, course_id: int) -> List[Dict]:
+        """List course discussions"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/discussion_topics"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def list_files(self, course_id: int) -> List[Dict]:
+        """List course files"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/files"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def get_grades(self, course_id: int, user_id: int = None) -> Dict:
+        """Get student grades"""
+        if user_id:
+            url = f"{self.base_url}/api/v1/courses/{course_id}/students/submissions"
+            params = {"student_ids": [user_id], "per_page": 100}
+        else:
+            url = f"{self.base_url}/api/v1/courses/{course_id}/students/submissions"
+            params = {"per_page": 100}
+        response = requests.get(url, headers=self.headers, params=params)
+        response.raise_for_status()
+        return response.json()
+    
+    def view_gradebook(self, course_id: int) -> Dict:
+        """View course gradebook"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/gradebook"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def post_discussion_reply(self, course_id: int, topic_id: int, message: str) -> Dict:
+        """Post reply to discussion"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/discussion_topics/{topic_id}/entries"
+        data = {"message": message}
+        response = requests.post(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_upcoming_assignments(self, user_id: int = None) -> List[Dict]:
+        """Get upcoming assignments across all courses"""
+        if user_id:
+            url = f"{self.base_url}/api/v1/users/{user_id}/upcoming_events"
+        else:
+            url = f"{self.base_url}/api/v1/users/self/upcoming_events"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_course_progress(self, course_id: int, user_id: int = None) -> Dict:
+        """Get student progress in course"""
+        if user_id:
+            url = f"{self.base_url}/api/v1/courses/{course_id}/analytics/users/{user_id}/activity"
+        else:
+            url = f"{self.base_url}/api/v1/courses/{course_id}/analytics/student_summaries"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()

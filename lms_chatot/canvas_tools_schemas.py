@@ -848,6 +848,53 @@ class CanvasToolSchemas:
         }
 
     @staticmethod
+    def post_discussion_reply():
+        return {
+            "type": "function",
+            "function": {
+                "name": "post_discussion_reply",
+                "description": "Post a reply to a discussion topic",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                        "topic_id": {"type": "integer", "description": "Discussion topic ID"},
+                        "message": {"type": "string", "description": "Reply message"},
+                    },
+                    "required": ["course_id", "topic_id", "message"],
+                },
+            },
+        }
+
+    @staticmethod
+    def get_upcoming_assignments():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_upcoming_assignments",
+                "description": "Get upcoming assignments and events across all courses",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+
+    @staticmethod
+    def get_course_progress():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_course_progress",
+                "description": "Get student progress and analytics in a course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer", "description": "Course ID"},
+                    },
+                    "required": ["course_id"],
+                },
+            },
+        }
+
+    @staticmethod
     def create_multiple_modules():
         return {
             "type": "function",

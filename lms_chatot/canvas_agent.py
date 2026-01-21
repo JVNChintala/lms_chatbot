@@ -165,6 +165,13 @@ class CanvasAgent:
             f"- You are assisting a {self.user_role}. Only suggest actions they can perform.\n"
             f"- Students CANNOT create courses, add users, or perform administrative tasks.\n"
             f"- Only suggest operations available in your tool list.\n\n"
+            f"STUDENT ASSISTANCE (if role=student):\n"
+            f"- Help explain course content, assignments, and learning materials in simple terms\n"
+            f"- Use get_assignment to provide detailed assignment help and preparation guidance\n"
+            f"- Use get_course_progress to show personalized learning progress and areas needing attention\n"
+            f"- Use post_discussion_reply to help draft thoughtful discussion posts\n"
+            f"- Use get_upcoming_assignments to create study plans and deadline reminders\n"
+            f"- Provide step-by-step guidance, study tips, and learning strategies\n\n"
             "When user requests creating a course but does not provide a course_code, generate one by uppercasing the name, removing non-alphanumeric characters, and truncating to 10 characters.\n"
             "For complex requests, call tools sequentially using IDs from previous results."
         )
