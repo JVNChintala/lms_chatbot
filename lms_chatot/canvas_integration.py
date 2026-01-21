@@ -475,19 +475,77 @@ class CanvasLMS:
     def get_upcoming_assignments(self, user_id: int = None) -> List[Dict]:
         """Get upcoming assignments across all courses"""
         if user_id:
-            url = f"{self.base_url}/api/v1/users/{user_id}/upcoming_events"
+            url = f"{self.base_url}/api/v1/users/{user_id}/courses"
         else:
-            url = f"{self.base_url}/api/v1/users/self/upcoming_events"
-        response = requests.get(url, headers=self.headers)
+            url = f"{self.base_url}/api/v1/courses"
+        
+        # Get all active courses
+        response = requests.get(url, headers=self.headers, params={"enrollment_state": "active", "per_page": 100})
         response.raise_for_status()
-        return response.json()
+        courses = response.json()
+        
+        # Get assignments from each course
+        upcoming = []
+        for course in courses:
+            try:
+                assignments_url = f"{self.base_url}/api/v1/courses/{course['id']}/assignments"
+                resp = requests.get(assignments_url, headers=self.headers, params={"per_page": 100})
+                if resp.ok:
+                    assignments = resp.json()
+                    for assignment in assignments:
+                        if assignment.get('due_at'):
+                            upcoming.append({
+                                "course_id": course['id'],
+                                "course_name": course.get('name'),
+                                "assignment_id": assignment['id'],
+                                "assignment_name": assignment['name'],
+                                "due_at": assignment['due_at'],
+                                "points_possible": assignment.get('points_possible'),
+                            })
+            except:
+                continue
+        
+        # Sort by due date
+        upcoming.sort(key=lambda x: x['due_at'])
+        return upcoming
     
     def get_course_progress(self, course_id: int, user_id: int = None) -> Dict:
         """Get student progress in course"""
+        try:
+            # Try analytics endpoint first
+            if user_id:
+                url = f"{self.base_url}/api/v1/courses/{course_id}/analytics/users/{user_id}/activity"
+            else:
+                url = f"{self.base_url}/api/v1/courses/{course_id}/analytics/student_summaries"
+            response = requests.get(url, headers=self.headers)
+            if response.ok:
+                return response.json()
+        except:
+            pass
+        
+        # Fallback: Get assignments and submissions to calculate progress
+        assignments_url = f"{self.base_url}/api/v1/courses/{course_id}/assignments"
+        assignments_resp = requests.get(assignments_url, headers=self.headers, params={"per_page": 100})
+        assignments_resp.raise_for_status()
+        assignments = assignments_resp.json()
+        
         if user_id:
-            url = f"{self.base_url}/api/v1/courses/{course_id}/analytics/users/{user_id}/activity"
-        else:
-            url = f"{self.base_url}/api/v1/courses/{course_id}/analytics/student_summaries"
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+            submissions_url = f"{self.base_url}/api/v1/courses/{course_id}/students/submissions"
+            submissions_resp = requests.get(submissions_url, headers=self.headers, params={"student_ids": [user_id], "per_page": 100})
+            submissions_resp.raise_for_status()
+            submissions = submissions_resp.json()
+            
+            total = len(assignments)
+            submitted = len([s for s in submissions if s.get('submitted_at')])
+            graded = len([s for s in submissions if s.get('grade')])
+            
+            return {
+                "course_id": course_id,
+                "total_assignments": total,
+                "submitted_assignments": submitted,
+                "graded_assignments": graded,
+                "completion_rate": round((submitted / total * 100) if total > 0 else 0, 2),
+                "assignments": assignments[:10],  # Recent 10
+            }
+        
+        return {"assignments": assignments}
