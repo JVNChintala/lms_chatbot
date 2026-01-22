@@ -170,6 +170,8 @@ class CanvasTools:
             return {"error": f"Unknown function: {function_name}"}
 
         try:
+            print(f"\n[TOOL SELECTED] {function_name}")
+            print(f"[TOOL ARGS] {arguments}")
             logger.info(f"Executing Tool: {function_name}")
             result = handler(arguments)
             print(f"Tool Result: {result}")
