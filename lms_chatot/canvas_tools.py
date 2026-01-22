@@ -76,6 +76,9 @@ class CanvasTools:
             "get_page_content": self._get_page_content,
             "get_student_analytics": self._get_student_analytics,
             "update_page": self._update_page,
+            "get_quiz_questions": self._get_quiz_questions,
+            "update_quiz_question": self._update_quiz_question,
+            "delete_quiz_question": self._delete_quiz_question,
         }
 
     # ------------------------------------------------------------------
@@ -127,6 +130,9 @@ class CanvasTools:
             CanvasToolSchemas.get_page_content(),
             CanvasToolSchemas.get_student_analytics(),
             CanvasToolSchemas.update_page(),
+            CanvasToolSchemas.get_quiz_questions(),
+            CanvasToolSchemas.update_quiz_question(),
+            CanvasToolSchemas.delete_quiz_question(),
             # CanvasToolSchemas.list_enrollments(),
             # CanvasToolSchemas.get_user_profile(),
         ]
@@ -149,8 +155,8 @@ class CanvasTools:
                 "enroll_user", "unenroll_user", "list_enrollments", "list_course_users",
                 "list_announcements", "create_announcement",
                 "list_discussions", "create_discussion",
-                "list_quizzes", "create_quiz", "create_quiz_question",
-                "list_pages", "create_page", "update_page",
+                "list_quizzes", "create_quiz", "create_quiz_question", "get_quiz_questions", "update_quiz_question", "delete_quiz_question",
+                "list_pages", "create_page", "update_page", "get_page_content",
                 "list_files", "upload_file",
                 "get_grades", "view_gradebook"
             },
@@ -440,9 +446,32 @@ class CanvasTools:
         return self.canvas.get_student_analytics(args["course_id"], user_id)
 
     def _update_page(self, args: dict):
+        if self.user_role == "student":
+            return {"error": "Students cannot edit page content. Only teachers and admins can update pages."}
         return self.canvas.update_page(
             args["course_id"],
             args["page_url"],
             args.get("title"),
             args.get("body")
+        )
+
+    def _get_quiz_questions(self, args: dict):
+        return self.canvas.get_quiz_questions(args["course_id"], args["quiz_id"])
+
+    def _update_quiz_question(self, args: dict):
+        if self.user_role == "student":
+            return {"error": "Students cannot edit quiz questions. Only teachers and admins can update quizzes."}
+        updates = {k: v for k, v in args.items() if k not in ["course_id", "quiz_id", "question_id"]}
+        return self.canvas.update_quiz_question(
+            args["course_id"],
+            args["quiz_id"],
+            args["question_id"],
+            updates
+        )
+
+    def _delete_quiz_question(self, args: dict):
+        return self.canvas.delete_quiz_question(
+            args["course_id"],
+            args["quiz_id"],
+            args["question_id"]
         )

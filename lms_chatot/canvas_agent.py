@@ -8,6 +8,7 @@ from canvas_tools import CanvasTools
 from usage_tracker import usage_tracker
 from inference_systems.openai_inference import OpenAIInference
 from intent_permission_checker import IntentPermissionChecker
+from tool_filter import classify_intent_and_filter_tools
 # from inference_systems.deepseek_inference import DeepSeekInference
 
 
@@ -152,28 +153,26 @@ class CanvasAgent:
         # Build context-aware system prompt
         context_info = self._build_context_prompt()
         
+        # Filter tools based on intent and context to reduce confusion
+        filtered_tools = classify_intent_and_filter_tools(
+            user_message,
+            self.user_role,
+            self.user_info,
+            available_tools
+        )
+        
+        print(f"\n[TOOL FILTERING] Original: {len(available_tools)} tools → Filtered: {len(filtered_tools)} tools")
+        print(f"[FILTERED TOOLS] {[t['function']['name'] for t in filtered_tools]}")
+        
         system_prompt = (
             f"You are a Canvas LMS assistant for a {self.user_role or 'user'}.\n"
             f"{context_info}"
-            "You have access to Canvas API tools. ALWAYS use tools to perform Canvas operations.\n\n"
-            "CRITICAL CHAINING RULES:\n"
-            "1. After creating a resource (course, module, etc.), use the returned ID for subsequent operations\n"
-            "2. Example: create_course returns course_id → use that course_id to create_module\n"
-            "3. Example: create_module returns module_id → use that module_id to add_page_to_module\n"
-            "4. NEVER call list/search tools to find IDs you just created - use the IDs from tool results\n\n"
-            f"ROLE-BASED RESTRICTIONS:\n"
-            f"- You are assisting a {self.user_role}. Only suggest actions they can perform.\n"
-            f"- Students CANNOT create courses, add users, or perform administrative tasks.\n"
-            f"- Only suggest operations available in your tool list.\n\n"
-            f"STUDENT ASSISTANCE (if role=student):\n"
-            f"- Help explain course content, assignments, and learning materials in simple terms\n"
-            f"- Use get_assignment + get_rubric to provide detailed assignment help with grading criteria\n"
-            f"- Use get_course_progress + get_student_analytics for personalized learning insights\n"
-            f"- Use get_page_content to understand current page context and provide relevant help\n"
-            f"- Use post_discussion_reply to help draft thoughtful discussion posts\n"
-            f"- Use get_upcoming_assignments to create study plans and deadline reminders\n"
-            f"- Provide step-by-step guidance, study tips, and learning strategies\n\n"
-            "When user requests creating a course but does not provide a course_code, generate one by uppercasing the name, removing non-alphanumeric characters, and truncating to 10 characters.\n"
+            "CRITICAL RULES:\n"
+            "1. If ANY required parameter is unclear or missing, ASK the user before calling tools\n"
+            "2. NEVER make up parameter values - always ask for clarification\n"
+            "3. Use ONLY the tools provided - do not suggest unavailable actions\n"
+            "4. When context provides IDs (course_id, page_url, quiz_id), USE them directly\n"
+            "5. After tool execution, use returned IDs for subsequent operations\n\n"
             "For complex requests, call tools sequentially using IDs from previous results."
         )
         
@@ -191,7 +190,7 @@ class CanvasAgent:
         result = self.inference.run_agent(
             system_prompt,
             messages,
-            available_tools,
+            filtered_tools,  # Use filtered tools instead of all tools
             tool_executor
         )
         
@@ -231,6 +230,7 @@ class CanvasAgent:
         if self.user_info.get("quiz_id"):
             context_parts.append(f"User is viewing quiz ID {self.user_info['quiz_id']}.")
             context_parts.append("When user refers to 'this quiz', use this quiz_id.")
+            context_parts.append("To see quiz questions, use get_quiz_questions. To update questions, use update_quiz_question.")
         
         # Module context
         if self.user_info.get("module_id"):

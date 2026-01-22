@@ -993,3 +993,61 @@ class CanvasToolSchemas:
                 },
             },
         }
+
+    @staticmethod
+    def get_quiz_questions():
+        return {
+            "type": "function",
+            "function": {
+                "name": "get_quiz_questions",
+                "description": "Get all questions in a quiz",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "quiz_id": {"type": "integer"},
+                    },
+                    "required": ["course_id", "quiz_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def update_quiz_question():
+        return {
+            "type": "function",
+            "function": {
+                "name": "update_quiz_question",
+                "description": "Update a quiz question",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "quiz_id": {"type": "integer"},
+                        "question_id": {"type": "integer"},
+                        "question_text": {"type": "string"},
+                        "points_possible": {"type": "number"},
+                    },
+                    "required": ["course_id", "quiz_id", "question_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def delete_quiz_question():
+        return {
+            "type": "function",
+            "function": {
+                "name": "delete_quiz_question",
+                "description": "Delete a quiz question",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "quiz_id": {"type": "integer"},
+                        "question_id": {"type": "integer"},
+                    },
+                    "required": ["course_id", "quiz_id", "question_id"],
+                },
+            },
+        }

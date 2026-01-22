@@ -593,3 +593,27 @@ class CanvasLMS:
         response = requests.put(url, headers=self.headers, data=data)
         response.raise_for_status()
         return response.json()
+
+    def get_quiz_questions(self, course_id: int, quiz_id: int) -> List[Dict]:
+        """Get all questions in a quiz"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions"
+        response = requests.get(url, headers=self.headers, params={"per_page": 100})
+        response.raise_for_status()
+        return response.json()
+    
+    def update_quiz_question(self, course_id: int, quiz_id: int, question_id: int, updates: Dict) -> Dict:
+        """Update a quiz question"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions/{question_id}"
+        data = {}
+        for key, value in updates.items():
+            data[f"question[{key}]"] = value
+        response = requests.put(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def delete_quiz_question(self, course_id: int, quiz_id: int, question_id: int) -> Dict:
+        """Delete a quiz question"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions/{question_id}"
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
