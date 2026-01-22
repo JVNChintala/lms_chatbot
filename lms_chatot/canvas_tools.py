@@ -75,6 +75,7 @@ class CanvasTools:
             "get_rubric": self._get_rubric,
             "get_page_content": self._get_page_content,
             "get_student_analytics": self._get_student_analytics,
+            "update_page": self._update_page,
         }
 
     # ------------------------------------------------------------------
@@ -125,6 +126,7 @@ class CanvasTools:
             CanvasToolSchemas.get_rubric(),
             CanvasToolSchemas.get_page_content(),
             CanvasToolSchemas.get_student_analytics(),
+            CanvasToolSchemas.update_page(),
             # CanvasToolSchemas.list_enrollments(),
             # CanvasToolSchemas.get_user_profile(),
         ]
@@ -148,7 +150,7 @@ class CanvasTools:
                 "list_announcements", "create_announcement",
                 "list_discussions", "create_discussion",
                 "list_quizzes", "create_quiz", "create_quiz_question",
-                "list_pages", "create_page",
+                "list_pages", "create_page", "update_page",
                 "list_files", "upload_file",
                 "get_grades", "view_gradebook"
             },
@@ -436,3 +438,11 @@ class CanvasTools:
     def _get_student_analytics(self, args: dict):
         user_id = self.canvas_user_id if self.user_role == "student" else args["user_id"]
         return self.canvas.get_student_analytics(args["course_id"], user_id)
+
+    def _update_page(self, args: dict):
+        return self.canvas.update_page(
+            args["course_id"],
+            args["page_url"],
+            args.get("title"),
+            args.get("body")
+        )

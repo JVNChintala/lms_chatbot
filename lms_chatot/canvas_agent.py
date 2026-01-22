@@ -247,9 +247,11 @@ class CanvasAgent:
         if "/pages/" in current_page:
             page_url = current_page.split("/pages/")[-1].split("?")[0]
             context_parts.append(f"User is viewing a content page with URL slug: '{page_url}'.")
-            context_parts.append("When user says 'this page', 'current page', or 'add content here', they mean THIS specific page.")
-            context_parts.append("To update this page, use update_page tool with the page_url parameter.")
+            context_parts.append("CRITICAL: When user says 'update this page', 'update current page', or 'update the page', they mean THIS specific page.")
+            context_parts.append(f"To update this page, use update_page tool with course_id={self.user_info.get('course_id')} and page_url='{page_url}'.")
+            context_parts.append("DO NOT use update_course when user wants to update a page.")
             context_parts.append("DO NOT create a new page when user wants to update the current page.")
+            context_parts.append("ALWAYS ask what content they want to add/change before calling update_page.")
         
         if context_parts:
             return "CURRENT CONTEXT:\n" + "\n".join(context_parts) + "\n\n"

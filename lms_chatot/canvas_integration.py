@@ -581,3 +581,15 @@ class CanvasLMS:
         except:
             pass
         return analytics
+
+    def update_page(self, course_id: int, page_url: str, title: str = None, body: str = None) -> Dict:
+        """Update page content"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/pages/{page_url}"
+        data = {}
+        if title:
+            data["wiki_page[title]"] = title
+        if body:
+            data["wiki_page[body]"] = body
+        response = requests.put(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()

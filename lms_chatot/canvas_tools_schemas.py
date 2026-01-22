@@ -973,3 +973,23 @@ class CanvasToolSchemas:
                 },
             },
         }
+
+    @staticmethod
+    def update_page():
+        return {
+            "type": "function",
+            "function": {
+                "name": "update_page",
+                "description": "Update content page title or body",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "page_url": {"type": "string", "description": "Page URL slug"},
+                        "title": {"type": "string", "description": "New page title (optional)"},
+                        "body": {"type": "string", "description": "New page content (optional)"},
+                    },
+                    "required": ["course_id", "page_url"],
+                },
+            },
+        }
