@@ -135,6 +135,25 @@ class CanvasAgent:
     ) -> Dict[str, Any]:
         """Process a fresh user message using run_agent for multi-step workflows"""
         
+        # Early permission check for common restricted actions
+        message_lower = user_message.lower()
+        if self.user_role == "student":
+            restricted_actions = [
+                ("update", "page", "Students cannot edit page content. Only teachers can update pages."),
+                ("edit", "page", "Students cannot edit page content. Only teachers can update pages."),
+                ("change", "page", "Students cannot edit page content. Only teachers can update pages."),
+                ("update", "quiz", "Students cannot edit quizzes. Only teachers can update quiz questions."),
+                ("edit", "quiz", "Students cannot edit quizzes. Only teachers can update quiz questions."),
+                ("create", "course", "Students cannot create courses. Only teachers and admins can create courses."),
+            ]
+            for action, resource, error_msg in restricted_actions:
+                if action in message_lower and resource in message_lower:
+                    return {
+                        "content": error_msg,
+                        "tool_used": False,
+                        "permission_denied": True,
+                    }
+        
         # Check permissions before calling LLM
         available_tool_names = {t["function"]["name"] for t in available_tools}
         permission_check = self.permission_checker.check_permission(
