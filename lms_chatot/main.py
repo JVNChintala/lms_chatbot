@@ -43,10 +43,16 @@ app = FastAPI(title="LLM Inference API")
 # Enable CORS for Canvas domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this to match your Canvas domain(s)
+    allow_origins=[
+        "*",  # Allow all origins for development
+        "https://your-canvas-domain.com",  # Add your Canvas domain
+        "http://localhost:*",
+        "https://localhost:*",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(lti_router)
