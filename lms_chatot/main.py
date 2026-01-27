@@ -45,14 +45,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "*",  # Allow all origins for development
-        "https://your-canvas-domain.com",  # Add your Canvas domain
-        "http://localhost:*",
-        "https://localhost:*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 app.include_router(lti_router)
