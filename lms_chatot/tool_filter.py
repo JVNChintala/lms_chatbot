@@ -9,6 +9,24 @@ def classify_intent_and_filter_tools(user_message: str, user_role: str, context:
     """
     message_lower = user_message.lower()
     
+    # For students, always include core navigation tools
+    if user_role == "student":
+        core_student_tools = [
+            "list_user_courses", "get_course", 
+            "list_assignments", "get_assignment",
+            "list_modules", "get_module",
+            "get_upcoming_assignments", "get_course_progress",
+            "get_page_content", "get_rubric"
+        ]
+        filtered = [t for t in all_tools if t["function"]["name"] in core_student_tools]
+        
+        # Add discussion tools if mentioned
+        if "discussion" in message_lower or "post" in message_lower:
+            discussion_tools = ["list_discussions", "post_discussion_reply"]
+            filtered.extend([t for t in all_tools if t["function"]["name"] in discussion_tools])
+        
+        return filtered
+    
     # Detect primary intent
     intents = {
         "view": ["show", "list", "view", "see", "get", "what", "display"],

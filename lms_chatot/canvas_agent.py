@@ -187,12 +187,12 @@ class CanvasAgent:
             f"You are a Canvas LMS assistant for a {self.user_role or 'user'}.\n"
             f"{context_info}"
             "CRITICAL RULES:\n"
-            "1. If ANY required parameter is unclear or missing, ASK the user before calling tools\n"
-            "2. NEVER make up parameter values - always ask for clarification\n"
-            "3. Use ONLY the tools provided - do not suggest unavailable actions\n"
-            "4. When context provides IDs (course_id, page_url, quiz_id), USE them directly\n"
-            "5. After tool execution, use returned IDs for subsequent operations\n\n"
-            "For complex requests, call tools sequentially using IDs from previous results."
+            "1. If user asks about assignments/courses without specifying which one, call list_assignments or list_user_courses FIRST\n"
+            "2. After getting the list, if user wants details about a specific item, call get_assignment or get_course with the ID\n"
+            "3. If ANY required parameter is unclear, ASK the user\n"
+            "4. NEVER make up IDs - always get them from list tools first\n"
+            "5. When context provides IDs, USE them directly\n\n"
+            "WORKFLOW: list → get details → perform action"
         )
         
         messages = [
