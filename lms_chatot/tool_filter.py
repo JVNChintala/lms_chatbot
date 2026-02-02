@@ -17,25 +17,39 @@ INTENT_MODEL = "gpt-4o-mini"  # Fast model for intent classification
 def classify_intent_with_llm(user_message: str, context: dict) -> dict:
     """Use GPT-4o-mini to classify user intent and resource type"""
     try:
+        context_str = f"course_id={context.get('course_id')}, quiz_id={context.get('quiz_id')}, assignment_id={context.get('assignment_id')}, current_page={context.get('current_page', '')}"
+        
         prompt = f"""Analyze this user message and extract:
 1. Primary intent: view, create, update, delete, grade, enroll, or general
 2. Resource type: course, assignment, quiz, page, module, discussion, or none
 
-User message: "{user_message}"
-Context: {context}
+User message: \"{user_message}\"
+Context: {context_str}
 
-Respond in JSON format:
+Respond ONLY with valid JSON:
 {{"intent": "<intent>", "resource": "<resource>"}}"""
 
         response = client.chat.completions.create(
             model=INTENT_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
-            max_tokens=50
+            max_tokens=50,
+            response_format={"type": "json_object"}
         )
-        
+
         import json
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        if content is None or not content.strip():
+            logger.warning("LLM returned empty content for intent classification.")
+            return None
+        content = content.strip()
+        result = json.loads(content)
+        
+        # Validate response structure
+        if "intent" not in result or "resource" not in result:
+            logger.warning(f"LLM returned incomplete response: {result}")
+            return None
+            
         return result
     except Exception as e:
         logger.warning(f"LLM intent classification failed: {e}, falling back to keyword matching")
