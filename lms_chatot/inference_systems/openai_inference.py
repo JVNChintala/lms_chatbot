@@ -22,7 +22,7 @@ class OpenAIInference(BaseInference):
     """
 
     DEFAULT_MODEL = "gpt-4o-mini"  # For intent classification and output generation
-    TOOL_SELECTION_MODEL = "gpt-5o-mini"  # For tool selection
+    TOOL_SELECTION_MODEL = "gpt-5-mini"  # For tool selection
     MAX_TOKENS = 5000
     MAX_STEPS = 20
     IDLE_LIMIT = 3
