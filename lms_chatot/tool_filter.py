@@ -92,6 +92,12 @@ def classify_intent_and_filter_tools(user_message: str, user_role: str, context:
         if resource_type and resource_type in tool_name:
             if tool not in filtered:
                 filtered.append(tool)
+        
+        # Always include Commons search when creating courses
+        if "create" in message_lower and "course" in message_lower:
+            if "search_commons" in tool_name or "import_from_commons" in tool_name:
+                if tool not in filtered:
+                    filtered.append(tool)
     
     # If no filtering worked, return limited core tools
     if not filtered:

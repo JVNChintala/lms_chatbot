@@ -3,6 +3,7 @@ import re
 from typing import Dict, List, Any, Callable
 from canvas_integration import CanvasLMS
 from canvas_tools_schemas import CanvasToolSchemas
+from video_gen_simple import VideoGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class CanvasTools:
         self.user_role = user_role or "default"
         self.user_info = user_info or {}
         self.canvas_user_id = self.user_info.get("canvas_user_id")
+        self.video_gen = VideoGenerator()
 
         logger.info(
             f"Initialized role={self.user_role}, "
@@ -79,6 +81,9 @@ class CanvasTools:
             "get_quiz_questions": self._get_quiz_questions,
             "update_quiz_question": self._update_quiz_question,
             "delete_quiz_question": self._delete_quiz_question,
+            "search_commons": self._search_commons,
+            "import_from_commons": self._import_from_commons,
+            "generate_educational_video": self._generate_educational_video,
         }
 
     # ------------------------------------------------------------------
@@ -133,6 +138,9 @@ class CanvasTools:
             CanvasToolSchemas.get_quiz_questions(),
             CanvasToolSchemas.update_quiz_question(),
             CanvasToolSchemas.delete_quiz_question(),
+            CanvasToolSchemas.search_commons(),
+            CanvasToolSchemas.import_from_commons(),
+            CanvasToolSchemas.generate_educational_video(),
             # CanvasToolSchemas.list_enrollments(),
             # CanvasToolSchemas.get_user_profile(),
         ]
@@ -158,7 +166,9 @@ class CanvasTools:
                 "list_quizzes", "create_quiz", "create_quiz_question", "get_quiz_questions", "update_quiz_question", "delete_quiz_question",
                 "list_pages", "create_page", "update_page", "get_page_content",
                 "list_files", "upload_file",
-                "get_grades", "view_gradebook"
+                "get_grades", "view_gradebook",
+                "search_commons", "import_from_commons",
+                "generate_educational_video"
             },
             "admin": {t["function"]["name"] for t in tools},
         }
@@ -474,4 +484,19 @@ class CanvasTools:
             args["course_id"],
             args["quiz_id"],
             args["question_id"]
+        )
+
+    def _search_commons(self, args: dict):
+        return self.canvas.search_commons(args["query"])
+
+    def _import_from_commons(self, args: dict):
+        return self.canvas.import_from_commons(
+            args["course_id"],
+            args["commons_resource_id"]
+        )
+
+    def _generate_educational_video(self, args: dict):
+        return self.video_gen.generate_educational_video(
+            args["topic"],
+            args.get("duration", "short")
         )

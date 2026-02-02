@@ -617,3 +617,25 @@ class CanvasLMS:
         response = requests.delete(url, headers=self.headers)
         response.raise_for_status()
         return response.json()
+
+    def search_commons(self, query: str) -> List[Dict]:
+        """Search Canvas Commons for course templates"""
+        url = f"{self.base_url}/api/v1/search/all_courses"
+        params = {"search": query, "per_page": 10}
+        try:
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except:
+            return []
+    
+    def import_from_commons(self, course_id: int, commons_resource_id: str) -> Dict:
+        """Import a resource from Canvas Commons"""
+        url = f"{self.base_url}/api/v1/courses/{course_id}/content_migrations"
+        data = {
+            "migration_type": "common_cartridge_importer",
+            "settings[file_url]": f"https://lor.instructure.com/api/v1/resources/{commons_resource_id}/export"
+        }
+        response = requests.post(url, headers=self.headers, data=data)
+        response.raise_for_status()
+        return response.json()

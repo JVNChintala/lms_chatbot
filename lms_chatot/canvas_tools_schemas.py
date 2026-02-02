@@ -1051,3 +1051,56 @@ class CanvasToolSchemas:
                 },
             },
         }
+
+    @staticmethod
+    def search_commons():
+        return {
+            "type": "function",
+            "function": {
+                "name": "search_commons",
+                "description": "Search Canvas Commons for course templates and resources before creating a new course",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search term (e.g., 'Biology 101', 'Introduction to Python')"},
+                    },
+                    "required": ["query"],
+                },
+            },
+        }
+
+    @staticmethod
+    def import_from_commons():
+        return {
+            "type": "function",
+            "function": {
+                "name": "import_from_commons",
+                "description": "Import a course template from Canvas Commons",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "course_id": {"type": "integer"},
+                        "commons_resource_id": {"type": "string"},
+                    },
+                    "required": ["course_id", "commons_resource_id"],
+                },
+            },
+        }
+
+    @staticmethod
+    def generate_educational_video():
+        return {
+            "type": "function",
+            "function": {
+                "name": "generate_educational_video",
+                "description": "Generate educational video content using AI (free open-source model)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "topic": {"type": "string", "description": "Topic to explain (e.g., 'photosynthesis', 'Python loops')"},
+                        "duration": {"type": "string", "enum": ["short", "medium"], "description": "Video length"},
+                    },
+                    "required": ["topic"],
+                },
+            },
+        }
