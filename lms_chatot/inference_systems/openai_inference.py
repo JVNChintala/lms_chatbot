@@ -21,7 +21,8 @@ class OpenAIInference(BaseInference):
     - Human-recoverable
     """
 
-    DEFAULT_MODEL = "gpt-4o-mini"
+    DEFAULT_MODEL = "gpt-4o-mini"  # For intent classification and output generation
+    TOOL_SELECTION_MODEL = "gpt-5o-mini"  # For tool selection
     MAX_TOKENS = 5000
     MAX_STEPS = 20
     IDLE_LIMIT = 3
@@ -133,7 +134,9 @@ class OpenAIInference(BaseInference):
         stop_reason = None
 
         for step in range(self.MAX_STEPS):
-            response = self._call_llm(conversation, normalized_tools)
+            # Use GPT-4o for tool selection, GPT-4o-mini for final output
+            use_tool_model = len(normalized_tools) > 0
+            response = self._call_llm(conversation, normalized_tools, use_tool_selection_model=use_tool_model)
             self._final_usage = self._to_dict(response.usage, response.model)
 
             tool_call = self._extract_tool_call(response)
@@ -223,9 +226,11 @@ class OpenAIInference(BaseInference):
         self,
         conversation: List[Dict[str, str]],
         tools: List[Dict[str, Any]],
+        use_tool_selection_model: bool = False,
     ):
+        model = self.TOOL_SELECTION_MODEL if use_tool_selection_model and tools else self.DEFAULT_MODEL
         return self.client.responses.create(
-            model=self.DEFAULT_MODEL,
+            model=model,
             input=conversation,
             tools=tools,
             max_output_tokens=self.MAX_TOKENS,
